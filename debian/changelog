@@ -1,0 +1,5 @@
+google-osconfig-agent (20200625.00-0ubuntu1) groovy; urgency=medium
+
+  * Initial release (LP: #1887408)
+
+ -- Balint Reczey <rbalint@ubuntu.com>  Mon, 29 Jun 2020 19:00:54 +0200
