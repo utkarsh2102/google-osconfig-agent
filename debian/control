@@ -6,19 +6,7 @@ Testsuite: autopkgtest-pkg-go
 Priority: optional
 Build-Depends: debhelper-compat (= 12),
                dh-golang,
-               golang-any,
-               golang-github-gcp-guest-logging-go-dev,
-               golang-github-kylelemons-godebug-dev,
-               golang-github-tarm-serial-dev,
-               golang-github-ulikunitz-xz-dev,
-               golang-golang-x-crypto-dev,
-               golang-golang-x-oauth2-google-dev,
-               golang-golang-x-sys-dev,
-               golang-google-api-dev,
-               golang-google-cloud-dev,
-               golang-google-genproto-dev (>= 0.0~git20200626.ee7919e~),
-               golang-google-grpc-dev (>= 1.28.1~),
-               golang-goprotobuf-dev (>= 1.4.0~)
+               golang-any
 Standards-Version: 4.5.0
 Vcs-Browser: https://code.launchpad.net/~ubuntu-core-dev/+git/google-osconfig-agent
 Vcs-Git: https://git.launchpad.net/~ubuntu-core-dev/+git/google-osconfig-agent -b ubuntu/master
