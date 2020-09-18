@@ -1,2 +1,1 @@
-* ship e2e_tests, too, when github.com/GoogleCloudPlatform/compute-image-tools is packaged
-* ship empty config dir in /etc, hopefully with https://github.com/GoogleCloudPlatform/osconfig/issues/192 resolved
+update debian/copyright with the vendored files
