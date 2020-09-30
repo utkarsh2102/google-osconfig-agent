@@ -1,3 +1,10 @@
+google-osconfig-agent (20200625.00-0ubuntu2) groovy; urgency=medium
+
+  * debian/extra/vendor/*: Add vendored module sources (LP: #1896246)
+  * debian/control: Drop unused Go build dependencies
+
+ -- Balint Reczey <rbalint@ubuntu.com>  Wed, 30 Sep 2020 16:14:25 +0200
+
 google-osconfig-agent (20200625.00-0ubuntu1) groovy; urgency=medium
 
   * Initial release (LP: #1887408)
