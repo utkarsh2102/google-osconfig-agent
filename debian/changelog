@@ -1,8 +1,11 @@
-google-osconfig-agent (20200625.00-0ubuntu3) UNRELEASED; urgency=medium
+google-osconfig-agent (20200625.00-0ubuntu3) groovy; urgency=medium
 
   * debian/patches/: Drop skipping DeepEqual check
+  * debian/rules: Build the package as preferred by upstream (LP: #1900897)
+    - Strip the binary
+    - Set main.version
 
- -- Balint Reczey <rbalint@ubuntu.com>  Wed, 21 Oct 2020 20:48:59 +0200
+ -- Balint Reczey <rbalint@ubuntu.com>  Wed, 21 Oct 2020 21:34:05 +0200
 
 google-osconfig-agent (20200625.00-0ubuntu2) groovy; urgency=medium
 
