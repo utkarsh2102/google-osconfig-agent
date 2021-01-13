@@ -16,14 +16,17 @@
 package util
 
 import (
-	"fmt"
+	"bytes"
+	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
+	"github.com/GoogleCloudPlatform/osconfig/clog"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // Logger holds log functions.
@@ -37,12 +40,8 @@ type Logger struct {
 
 // PrettyFmt uses jsonpb to marshal a proto for pretty printing.
 func PrettyFmt(pb proto.Message) string {
-	m := jsonpb.Marshaler{Indent: "  ", EmitDefaults: true, EnumsAsInts: false}
-	out, err := m.MarshalToString(pb)
-	if err != nil {
-		out = fmt.Sprintf("Error marshaling proto message: %v\n%s", err, out)
-	}
-	return out
+	m := &protojson.MarshalOptions{Indent: "  ", AllowPartial: true, UseProtoNames: true, EmitUnpopulated: true, UseEnumNumbers: false}
+	return m.Format(pb)
 }
 
 // NormPath transforms a windows path into an extended-length path as described in
@@ -74,4 +73,24 @@ func Exists(name string) bool {
 		return false
 	}
 	return true
+}
+
+// CommandRunner will execute the commands and return the results of that
+// execution.
+type CommandRunner interface {
+	Run(ctx context.Context, command *exec.Cmd) ([]byte, []byte, error)
+}
+
+// DefaultRunner is a default CommandRunner.
+type DefaultRunner struct{}
+
+// Run takes precreated exec.Cmd and returns the stdout and stderr.
+func (r *DefaultRunner) Run(ctx context.Context, cmd *exec.Cmd) ([]byte, []byte, error) {
+	clog.Debugf(ctx, "Running %q with args %q\n", cmd.Path, cmd.Args[1:])
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	clog.Debugf(ctx, "%s %q output:\n%s", cmd.Path, cmd.Args[1:], strings.ReplaceAll(stdout.String(), "\n", "\n "))
+	return stdout.Bytes(), stderr.Bytes(), err
 }

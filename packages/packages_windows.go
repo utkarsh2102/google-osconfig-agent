@@ -14,32 +14,59 @@ limitations under the License.
 package packages
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/osconfig/clog"
 	"github.com/GoogleCloudPlatform/osconfig/util"
 )
 
+// In order to work around memory issues with the WUA library we spawn a
+// new process for these inventory queries.
+func wuaUpdates(ctx context.Context, query string) ([]WUAPackage, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+
+	var wua []WUAPackage
+	stdout, stderr, err := runner.Run(ctx, exec.Command(exe, "wuaupdates", query))
+	if err != nil {
+		return nil, fmt.Errorf("error running agent to query for WUA updates, err: %v, stderr: %q ", err, stderr)
+	}
+	if err := json.Unmarshal(stdout, &wua); err != nil {
+		return nil, err
+	}
+
+	return wua, nil
+}
+
 // GetPackageUpdates gets available package updates GooGet as well as any
 // available updates from Windows Update Agent.
-func GetPackageUpdates() (Packages, error) {
+func GetPackageUpdates(ctx context.Context) (*Packages, error) {
 	var pkgs Packages
 	var errs []string
 
 	if GooGetExists {
-		if googet, err := GooGetUpdates(); err != nil {
+		if googet, err := GooGetUpdates(ctx); err != nil {
 			msg := fmt.Sprintf("error listing googet updates: %v", err)
-			DebugLogger.Println("Error:", msg)
+			clog.Debugf(ctx, "Error: %s", msg)
 			errs = append(errs, msg)
 		} else {
 			pkgs.GooGet = googet
 		}
 	}
-	DebugLogger.Println("Searching for available WUA updates.")
-	if wua, err := WUAUpdates("IsInstalled=0"); err != nil {
+
+	clog.Debugf(ctx, "Searching for available WUA updates.")
+
+	if wua, err := wuaUpdates(ctx, "IsInstalled=0"); err != nil {
 		msg := fmt.Sprintf("error listing installed Windows updates: %v", err)
-		DebugLogger.Println("Error:", msg)
+		clog.Debugf(ctx, "Error: %s", msg)
 		errs = append(errs, msg)
 	} else {
 		pkgs.WUA = wua
@@ -49,37 +76,38 @@ func GetPackageUpdates() (Packages, error) {
 	if len(errs) != 0 {
 		err = errors.New(strings.Join(errs, "\n"))
 	}
-	return pkgs, err
+	return &pkgs, err
 }
 
 // GetInstalledPackages gets all installed GooGet packages and Windows updates.
 // Windows updates are read from Windows Update Agent and Win32_QuickFixEngineering.
-func GetInstalledPackages() (Packages, error) {
+func GetInstalledPackages(ctx context.Context) (*Packages, error) {
 	var pkgs Packages
 	var errs []string
 
 	if util.Exists(googet) {
-		if googet, err := InstalledGooGetPackages(); err != nil {
+		if googet, err := InstalledGooGetPackages(ctx); err != nil {
 			msg := fmt.Sprintf("error listing installed googet packages: %v", err)
-			DebugLogger.Println("Error:", msg)
+			clog.Debugf(ctx, "Error: %s", msg)
 			errs = append(errs, msg)
 		} else {
 			pkgs.GooGet = googet
 		}
 	}
 
-	DebugLogger.Println("Searching for installed WUA updates.")
-	if wua, err := WUAUpdates("IsInstalled=1"); err != nil {
+	clog.Debugf(ctx, "Searching for installed WUA updates.")
+
+	if wua, err := wuaUpdates(ctx, "IsInstalled=1"); err != nil {
 		msg := fmt.Sprintf("error listing installed Windows updates: %v", err)
-		DebugLogger.Println("Error:", msg)
+		clog.Debugf(ctx, "Error: %s", msg)
 		errs = append(errs, msg)
 	} else {
 		pkgs.WUA = wua
 	}
 
-	if qfe, err := QuickFixEngineering(); err != nil {
+	if qfe, err := QuickFixEngineering(ctx); err != nil {
 		msg := fmt.Sprintf("error listing installed QuickFixEngineering updates: %v", err)
-		DebugLogger.Println("Error:", msg)
+		clog.Debugf(ctx, "Error: %s", msg)
 		errs = append(errs, msg)
 	} else {
 		pkgs.QFE = qfe
@@ -89,5 +117,5 @@ func GetInstalledPackages() (Packages, error) {
 	if len(errs) != 0 {
 		err = errors.New(strings.Join(errs, "\n"))
 	}
-	return pkgs, err
+	return &pkgs, err
 }

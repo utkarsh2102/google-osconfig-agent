@@ -17,17 +17,19 @@
 package ospatch
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
-	"github.com/GoogleCloudPlatform/guest-logging-go/logger"
+	"github.com/GoogleCloudPlatform/osconfig/clog"
 	"github.com/GoogleCloudPlatform/osconfig/packages"
 	"golang.org/x/sys/windows/registry"
 )
 
 // SystemRebootRequired checks whether a system reboot is required.
-func SystemRebootRequired() (bool, error) {
+func SystemRebootRequired(ctx context.Context) (bool, error) {
 	// https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw#remarks
-	logger.Debugf("Checking for PendingFileRenameOperations")
+	clog.Debugf(ctx, "Checking for PendingFileRenameOperations")
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Control\Session Manager`, registry.QUERY_VALUE)
 	if err == nil {
 		val, _, err := k.GetStringsValue("PendingFileRenameOperations")
@@ -35,7 +37,7 @@ func SystemRebootRequired() (bool, error) {
 			k.Close()
 
 			if len(val) > 0 {
-				logger.Debugf("PendingFileRenameOperations indicate a reboot is required: %q", val)
+				clog.Infof(ctx, "PendingFileRenameOperations indicate a reboot is required: %q", val)
 				return true, nil
 			}
 		} else if err != registry.ErrNotExist {
@@ -53,11 +55,11 @@ func SystemRebootRequired() (bool, error) {
 		// `SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending`,
 	}
 	for _, key := range regKeys {
-		logger.Debugf("Checking if reboot required by testing the existance of %s", key)
+		clog.Debugf(ctx, "Checking if reboot required by testing the existance of %s", key)
 		k, err := registry.OpenKey(registry.LOCAL_MACHINE, key, registry.QUERY_VALUE)
 		if err == nil {
 			k.Close()
-			logger.Debugf("%s exists indicating a reboot is required.", key)
+			clog.Infof(ctx, "%s exists indicating a reboot is required.", key)
 			return true, nil
 		} else if err != registry.ErrNotExist {
 			return false, err
@@ -67,12 +69,18 @@ func SystemRebootRequired() (bool, error) {
 	return false, nil
 }
 
-func checkFilters(updt *packages.IUpdate, kbExcludes, classFilter, exclusive_patches []string) (bool, error) {
+func checkFilters(ctx context.Context, updt *packages.IUpdate, kbExcludes, classFilter, exclusive_patches []string) (ok bool, err error) {
 	title, err := updt.GetProperty("Title")
 	if err != nil {
 		return false, fmt.Errorf(`updt.GetProperty("Title"): %v`, err)
 	}
 	defer title.Clear()
+
+	defer func() {
+		if ok == true {
+			clog.Debugf(ctx, "Update %q not excluded by any filters.", title.ToString())
+		}
+	}()
 
 	kbArticleIDsRaw, err := updt.GetProperty("KBArticleIDs")
 	if err != nil {
@@ -117,8 +125,9 @@ func checkFilters(updt *packages.IUpdate, kbExcludes, classFilter, exclusive_pat
 			}
 			defer kbRaw.Clear()
 			for _, e := range kbExcludes {
-				if e == kbRaw.ToString() {
-					logger.Debugf("Update %s (%s) matched exclude filter", title.ToString(), kbRaw.ToString())
+				// kbArticleIDs is just the IDs, but users are used to using the KB prefix.
+				if strings.TrimLeft(e, "KkBb") == kbRaw.ToString() {
+					clog.Debugf(ctx, "Update %q (%s) matched exclude filter", title.ToString(), kbRaw.ToString())
 					return false, nil
 				}
 			}
@@ -166,14 +175,16 @@ func checkFilters(updt *packages.IUpdate, kbExcludes, classFilter, exclusive_pat
 		}
 	}
 
-	logger.Debugf("Update %s not found in classification filter", title.ToString())
+	clog.Debugf(ctx, "Update %q not found in classification filter", title.ToString())
 	return false, nil
 }
 
 // GetWUAUpdates gets WUA updates based on optional classFilter and kbExcludes.
-func GetWUAUpdates(session *packages.IUpdateSession, classFilter, kbExcludes, exclusive_patches []string) (*packages.IUpdateCollection, error) {
+func GetWUAUpdates(ctx context.Context, session *packages.IUpdateSession, classFilter, kbExcludes, exclusivePatches []string) (*packages.IUpdateCollection, error) {
 	// Search for all not installed updates but filter out ones that will be installed after a reboot.
-	updts, err := session.GetWUAUpdateCollection("IsInstalled=0 AND RebootRequired=0")
+	filter := "IsInstalled=0 AND RebootRequired=0"
+	clog.Debugf(ctx, "Searching for WUA updates with query %q", filter)
+	updts, err := session.GetWUAUpdateCollection(filter)
 	if err != nil {
 		return nil, fmt.Errorf("GetWUAUpdateCollection error: %v", err)
 	}
@@ -186,19 +197,21 @@ func GetWUAUpdates(session *packages.IUpdateSession, classFilter, kbExcludes, ex
 	if err != nil {
 		return nil, err
 	}
+	clog.Debugf(ctx, "Found %d total updates avaiable (pre filter).", count)
 
 	newUpdts, err := packages.NewUpdateCollection()
 	if err != nil {
 		return nil, err
 	}
 
+	clog.Debugf(ctx, "Using filters: Excludes: %q, Classifications: %q, ExclusivePatches: %q", kbExcludes, classFilter, exclusivePatches)
 	for i := 0; i < int(count); i++ {
 		updt, err := updts.Item(i)
 		if err != nil {
 			return nil, err
 		}
 
-		ok, err := checkFilters(updt, kbExcludes, classFilter, exclusive_patches)
+		ok, err := checkFilters(ctx, updt, kbExcludes, classFilter, exclusivePatches)
 		if err != nil {
 			return nil, err
 		}

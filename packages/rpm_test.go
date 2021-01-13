@@ -16,8 +16,12 @@ package packages
 
 import (
 	"errors"
+	"os/exec"
 	"reflect"
 	"testing"
+
+	utilmocks "github.com/GoogleCloudPlatform/osconfig/util/mocks"
+	"github.com/golang/mock/gomock"
 )
 
 func TestParseInstalledRPMPackages(t *testing.T) {
@@ -42,8 +46,15 @@ func TestParseInstalledRPMPackages(t *testing.T) {
 }
 
 func TestInstalledRPMPackages(t *testing.T) {
-	run = getMockRun([]byte("foo x86_64 1.2.3-4"), nil)
-	ret, err := InstalledRPMPackages()
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
+	runner = mockCommandRunner
+	expectedCmd := exec.Command(rpmquery, rpmqueryArgs...)
+
+	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return([]byte("foo x86_64 1.2.3-4"), []byte("stderr"), nil).Times(1)
+	ret, err := InstalledRPMPackages(testCtx)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -53,8 +64,8 @@ func TestInstalledRPMPackages(t *testing.T) {
 		t.Errorf("InstalledRPMPackages() = %v, want %v", ret, want)
 	}
 
-	run = getMockRun(nil, errors.New("bad error"))
-	if _, err := InstalledRPMPackages(); err == nil {
+	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return([]byte("stdout"), []byte("stderr"), errors.New("bad error")).Times(1)
+	if _, err := InstalledRPMPackages(testCtx); err == nil {
 		t.Errorf("did not get expected error")
 	}
 }

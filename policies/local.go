@@ -16,13 +16,13 @@
 package policies
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 
 	"cloud.google.com/go/compute/metadata"
-	"github.com/GoogleCloudPlatform/guest-logging-go/logger"
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
+	"github.com/GoogleCloudPlatform/osconfig/clog"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	agentendpointpb "google.golang.org/genproto/googleapis/cloud/osconfig/agentendpoint/v1beta"
 )
@@ -30,11 +30,11 @@ import (
 // localConfig represents the structure of the config to the JSON parser.
 //
 // The types of members of the struct are wrappers for protobufs and delegate
-// the parsing to jsonpb lib via their UnmarshalJSON implementations.
+// the parsing to protojson lib via their UnmarshalJSON implementations.
 type localConfig struct {
-	Packages            []pkg
-	PackageRepositories []packageRepository
-	SoftwareRecipes     []softwareRecipe
+	Packages            []*pkg
+	PackageRepositories []*packageRepository
+	SoftwareRecipes     []*softwareRecipe
 }
 
 type pkg struct {
@@ -42,8 +42,8 @@ type pkg struct {
 }
 
 func (r *pkg) UnmarshalJSON(b []byte) error {
-	rd := bytes.NewReader(b)
-	return jsonpb.Unmarshal(rd, &r.Package)
+	un := &protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	return un.Unmarshal(b, &r.Package)
 }
 
 type packageRepository struct {
@@ -51,8 +51,8 @@ type packageRepository struct {
 }
 
 func (r *packageRepository) UnmarshalJSON(b []byte) error {
-	rd := bytes.NewReader(b)
-	return jsonpb.Unmarshal(rd, &r.PackageRepository)
+	un := &protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	return un.Unmarshal(b, &r.PackageRepository)
 }
 
 type softwareRecipe struct {
@@ -60,14 +60,14 @@ type softwareRecipe struct {
 }
 
 func (r *softwareRecipe) UnmarshalJSON(b []byte) error {
-	rd := bytes.NewReader(b)
-	return jsonpb.Unmarshal(rd, &r.SoftwareRecipe)
+	un := &protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	return un.Unmarshal(b, &r.SoftwareRecipe)
 }
 
-func readLocalConfig() (*localConfig, error) {
+func readLocalConfig(ctx context.Context) (*localConfig, error) {
 	s, err := metadata.Get("/instance/attributes/gce-software-declaration")
 	if err != nil {
-		logger.Debugf("No local config: %v", err)
+		clog.Debugf(ctx, "No local config: %v", err)
 		return nil, nil
 	}
 
@@ -79,7 +79,7 @@ func readLocalConfig() (*localConfig, error) {
 // override by higher priotiry policy(-ies).
 // For repositories that have no such Id, GetId returns "", in which
 // case the repository is never overridden.
-func getID(repo agentendpointpb.PackageRepository) string {
+func getID(repo *agentendpointpb.PackageRepository) string {
 	switch repo.Repository.(type) {
 	case *agentendpointpb.PackageRepository_Yum:
 		return "yum-" + repo.GetYum().GetId()
@@ -109,7 +109,7 @@ func mergeConfigs(local *localConfig, egp *agentendpointpb.EffectiveGuestPolicy)
 		pkgs[v.Package.Name] = true
 	}
 	for _, v := range egp.GetPackageRepositories() {
-		if id := getID(*v.PackageRepository); id != "" {
+		if id := getID(v.GetPackageRepository()); id != "" {
 			repos[id] = true
 		}
 	}
@@ -124,7 +124,7 @@ func mergeConfigs(local *localConfig, egp *agentendpointpb.EffectiveGuestPolicy)
 		}
 	}
 	for _, v := range local.PackageRepositories {
-		id := getID(v.PackageRepository)
+		id := getID(&v.PackageRepository)
 		if id != "" {
 			if _, ok := repos[id]; ok {
 				continue
