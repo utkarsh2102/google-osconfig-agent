@@ -25,6 +25,7 @@ import (
 	"log"
 	"path"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -109,14 +110,13 @@ func runGatherInventoryTest(ctx context.Context, testSetup *inventoryTestSetup, 
 		return nil, false
 	}
 
-	return gatherInventory(testCase, inst)
+	return gatherInventory(testCase, testSetup, inst)
 }
 
-func gatherInventory(testCase *junitxml.TestCase, inst *compute.Instance) ([]*apiBeta.GuestAttributesEntry, bool) {
+func gatherInventory(testCase *junitxml.TestCase, testSetup *inventoryTestSetup, inst *compute.Instance) ([]*apiBeta.GuestAttributesEntry, bool) {
 	testCase.Logf("Checking inventory data")
-	// It can take a long time to start collecting data, especially on Windows.
 	// LastUpdated is the last entry written by the agent, so wait on that.
-	_, err := inst.WaitForGuestAttributes("guestInventory/LastUpdated", 10*time.Second, 25*time.Minute)
+	_, err := inst.WaitForGuestAttributes("guestInventory/LastUpdated", 10*time.Second, testSetup.timeout)
 	if err != nil {
 		testCase.WriteFailure("Error waiting for guest attributes: %v", err)
 		return nil, false
@@ -272,10 +272,10 @@ func inventoryTestCase(ctx context.Context, testSetup *inventoryTestSetup, tests
 		return
 	}
 
-	logger.Printf("Running TestCase '%s.%q'", gatherInventoryTest.Classname, gatherInventoryTest.Name)
+	logger.Printf("Running TestCase %q", gatherInventoryTest.Name)
 	ga, ok := runGatherInventoryTest(ctx, testSetup, gatherInventoryTest, &logwg)
 	gatherInventoryTest.Finish(tests)
-	logger.Printf("TestCase '%s.%q' finished", gatherInventoryTest.Classname, gatherInventoryTest.Name)
+	logger.Printf("TestCase %q finished", gatherInventoryTest.Name)
 	if !ok {
 		hostnameTest.WriteFailure("Setup Failure")
 		hostnameTest.Finish(tests)
@@ -291,13 +291,17 @@ func inventoryTestCase(ctx context.Context, testSetup *inventoryTestSetup, tests
 		shortNameTest: runShortNameTest,
 		packageTest:   runPackagesTest,
 	} {
-		if tc.FilterTestCase(regex) {
+		// Skip packages test for cos as it is not currently supported.
+		if strings.Contains(tc.Name, "cos") && strings.Contains(tc.Name, "Packages") {
+			tc.WriteSkipped("Inventory Packages not currently supported on COS")
+			tc.Finish(tests)
+		} else if tc.FilterTestCase(regex) {
 			tc.Finish(tests)
 		} else {
-			logger.Printf("Running TestCase '%q'", tc.Name)
+			logger.Printf("Running TestCase %q", tc.Name)
 			f(ga, testSetup, tc)
 			tc.Finish(tests)
-			logger.Printf("TestCase '%q' finished in %fs", tc.Name, tc.Time)
+			logger.Printf("TestCase %q finished in %fs", tc.Name, tc.Time)
 		}
 	}
 	logwg.Wait()

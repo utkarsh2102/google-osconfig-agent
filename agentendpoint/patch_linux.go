@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/osconfig/clog"
 	"github.com/GoogleCloudPlatform/osconfig/ospatch"
 	"github.com/GoogleCloudPlatform/osconfig/packages"
 	"github.com/GoogleCloudPlatform/osconfig/retryutil"
@@ -34,13 +35,15 @@ func (r *patchTask) runUpdates(ctx context.Context) error {
 	if packages.AptExists && packages.DpkgQueryExists {
 		opts := []ospatch.AptGetUpgradeOption{
 			ospatch.AptGetDryRun(r.Task.GetDryRun()),
+			ospatch.AptGetExcludes(r.Task.GetPatchConfig().GetApt().GetExcludes()),
+			ospatch.AptGetExclusivePackages(r.Task.GetPatchConfig().GetApt().GetExclusivePackages()),
 		}
 		switch r.Task.GetPatchConfig().GetApt().GetType() {
 		case agentendpointpb.AptSettings_DIST:
 			opts = append(opts, ospatch.AptGetUpgradeType(packages.AptGetDistUpgrade))
 		}
-		r.debugf("Installing APT package updates.")
-		if err := retryutil.RetryFunc(retryPeriod, "installing APT package updates", func() error { return ospatch.RunAptGetUpgrade(opts...) }); err != nil {
+		clog.Debugf(ctx, "Installing APT package updates.")
+		if err := retryutil.RetryFunc(ctx, retryPeriod, "installing APT package updates", func() error { return ospatch.RunAptGetUpgrade(ctx, opts...) }); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
@@ -49,10 +52,11 @@ func (r *patchTask) runUpdates(ctx context.Context) error {
 			ospatch.YumUpdateSecurity(r.Task.GetPatchConfig().GetYum().GetSecurity()),
 			ospatch.YumUpdateMinimal(r.Task.GetPatchConfig().GetYum().GetMinimal()),
 			ospatch.YumUpdateExcludes(r.Task.GetPatchConfig().GetYum().GetExcludes()),
+			ospatch.YumExclusivePackages(r.Task.GetPatchConfig().GetYum().GetExclusivePackages()),
 			ospatch.YumDryRun(r.Task.GetDryRun()),
 		}
-		r.debugf("Installing YUM package updates.")
-		if err := retryutil.RetryFunc(retryPeriod, "installing YUM package updates", func() error { return ospatch.RunYumUpdate(opts...) }); err != nil {
+		clog.Debugf(ctx, "Installing YUM package updates.")
+		if err := retryutil.RetryFunc(ctx, retryPeriod, "installing YUM package updates", func() error { return ospatch.RunYumUpdate(ctx, opts...) }); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
@@ -62,10 +66,12 @@ func (r *patchTask) runUpdates(ctx context.Context) error {
 			ospatch.ZypperPatchSeverities(r.Task.GetPatchConfig().GetZypper().GetSeverities()),
 			ospatch.ZypperUpdateWithUpdate(r.Task.GetPatchConfig().GetZypper().GetWithUpdate()),
 			ospatch.ZypperUpdateWithOptional(r.Task.GetPatchConfig().GetZypper().GetWithOptional()),
+			ospatch.ZypperUpdateWithExcludes(r.Task.GetPatchConfig().GetZypper().GetExcludes()),
+			ospatch.ZypperUpdateWithExclusivePatches(r.Task.GetPatchConfig().GetZypper().GetExclusivePatches()),
 			ospatch.ZypperUpdateDryrun(r.Task.GetDryRun()),
 		}
-		r.debugf("Installing Zypper updates.")
-		if err := retryutil.RetryFunc(retryPeriod, "installing Zypper updates", func() error { return ospatch.RunZypperPatch(opts...) }); err != nil {
+		clog.Debugf(ctx, "Installing Zypper updates.")
+		if err := retryutil.RetryFunc(ctx, retryPeriod, "installing Zypper updates", func() error { return ospatch.RunZypperPatch(ctx, opts...) }); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}

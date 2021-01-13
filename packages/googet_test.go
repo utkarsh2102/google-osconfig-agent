@@ -16,34 +16,48 @@ package packages
 
 import (
 	"errors"
+	"os/exec"
 	"reflect"
 	"testing"
+
+	utilmocks "github.com/GoogleCloudPlatform/osconfig/util/mocks"
+	"github.com/golang/mock/gomock"
 )
 
 func TestInstallGooGetPackages(t *testing.T) {
-	run = getMockRun([]byte("TestInstallGooGetPackages"), nil)
-	if err := InstallGooGetPackages(pkgs); err != nil {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
+	runner = mockCommandRunner
+	expectedCmd := exec.Command(googet, append(googetInstallArgs, pkgs...)...)
+
+	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return([]byte("stdout"), []byte("stderr"), nil).Times(1)
+	if err := InstallGooGetPackages(testCtx, pkgs); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-}
 
-func TestInstallGooGetPackagesReturnsError(t *testing.T) {
-	run = getMockRun([]byte("TestInstallGooGetPackagesReturnsError"), errors.New("Could not install package"))
-	if err := InstallGooGetPackages(pkgs); err == nil {
+	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return([]byte("stdout"), []byte("stderr"), errors.New("Could not install package")).Times(1)
+	if err := InstallGooGetPackages(testCtx, pkgs); err == nil {
 		t.Errorf("did not get expected error")
 	}
 }
 
 func TestRemoveGooGet(t *testing.T) {
-	run = getMockRun([]byte("TestRemoveGooGet"), nil)
-	if err := RemoveGooGetPackages(pkgs); err != nil {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
+	runner = mockCommandRunner
+	expectedCmd := exec.Command(googet, append(googetRemoveArgs, pkgs...)...)
+
+	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return([]byte("stdout"), []byte("stderr"), nil).Times(1)
+	if err := RemoveGooGetPackages(testCtx, pkgs); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-}
 
-func TestRemoveGooGetReturnError(t *testing.T) {
-	run = getMockRun([]byte("TestRemoveGooGetReturnError"), errors.New("Could not find package"))
-	if err := RemoveGooGetPackages(pkgs); err == nil {
+	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return([]byte("stdout"), []byte("stderr"), errors.New("Could not remove package")).Times(1)
+	if err := RemoveGooGetPackages(testCtx, pkgs); err == nil {
 		t.Errorf("did not get expected error")
 	}
 }
@@ -69,8 +83,15 @@ func TestParseInstalledGooGetPackages(t *testing.T) {
 }
 
 func TestInstalledGooGetPackages(t *testing.T) {
-	run = getMockRun([]byte("foo.x86_64 1.2.3@4"), nil)
-	ret, err := InstalledGooGetPackages()
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
+	runner = mockCommandRunner
+	expectedCmd := exec.Command(googet, googetInstalledQueryArgs...)
+
+	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return([]byte("foo.x86_64 1.2.3@4"), []byte("stderr"), nil).Times(1)
+	ret, err := InstalledGooGetPackages(testCtx)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -80,8 +101,8 @@ func TestInstalledGooGetPackages(t *testing.T) {
 		t.Errorf("InstalledGooGetPackages() = %v, want %v", ret, want)
 	}
 
-	run = getMockRun(nil, errors.New("bad error"))
-	if _, err := InstalledGooGetPackages(); err == nil {
+	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return(nil, nil, errors.New("bad error")).Times(1)
+	if _, err := InstalledGooGetPackages(testCtx); err == nil {
 		t.Errorf("did not get expected error")
 	}
 }
@@ -107,8 +128,15 @@ func TestParseGooGetUpdates(t *testing.T) {
 }
 
 func TestGooGetUpdates(t *testing.T) {
-	run = getMockRun([]byte("foo.noarch, 3.5.4@1 --> 3.6.7@1 from repo"), nil)
-	ret, err := GooGetUpdates()
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
+	runner = mockCommandRunner
+	expectedCmd := exec.Command(googet, googetUpdateQueryArgs...)
+
+	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return([]byte("foo.noarch, 3.5.4@1 --> 3.6.7@1 from repo"), []byte("stderr"), nil).Times(1)
+	ret, err := GooGetUpdates(testCtx)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -118,8 +146,8 @@ func TestGooGetUpdates(t *testing.T) {
 		t.Errorf("GooGetUpdates() = %v, want %v", ret, want)
 	}
 
-	run = getMockRun(nil, errors.New("bad error"))
-	if _, err := GooGetUpdates(); err == nil {
+	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return([]byte("stdout"), []byte("stderr"), errors.New("bad error")).Times(1)
+	if _, err := GooGetUpdates(testCtx); err == nil {
 		t.Errorf("did not get expected error")
 	}
 }

@@ -16,13 +16,16 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
 	"unsafe"
 
 	"github.com/GoogleCloudPlatform/guest-logging-go/logger"
+	"github.com/GoogleCloudPlatform/osconfig/packages"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 )
@@ -96,7 +99,7 @@ type service struct {
 	run func(context.Context)
 }
 
-func (s *service) Execute(args []string, r <-chan svc.ChangeRequest, status chan<- svc.Status) (svcSpecificEC bool, exitCode uint32) {
+func (s *service) Execute(_ []string, r <-chan svc.ChangeRequest, status chan<- svc.Status) (bool, uint32) {
 	status <- svc.Status{State: svc.StartPending}
 	ctx, cncl := context.WithCancel(s.ctx)
 	defer cncl()
@@ -112,7 +115,7 @@ func (s *service) Execute(args []string, r <-chan svc.ChangeRequest, status chan
 		select {
 		case <-done:
 			status <- svc.Status{State: svc.StopPending}
-			return
+			return false, 0
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Interrogate:
@@ -129,4 +132,17 @@ func runService(ctx context.Context) {
 	if err := svc.Run(serviceName, &service{run: run, ctx: ctx}); err != nil {
 		logger.Fatalf("svc.Run error: %v", err)
 	}
+}
+
+func wuaUpdates(query string) error {
+	updts, err := packages.WUAUpdates(query)
+	if err != nil {
+		return err
+	}
+	data, err := json.Marshal(updts)
+	if err != nil {
+		return err
+	}
+	fmt.Fprint(os.Stdout, string(data))
+	return nil
 }

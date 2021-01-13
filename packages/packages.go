@@ -16,12 +16,15 @@ limitations under the License.
 package packages
 
 import (
-	"io/ioutil"
-	"log"
+	"context"
+	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/osconfig/clog"
 	"github.com/GoogleCloudPlatform/osconfig/osinfo"
+	"github.com/GoogleCloudPlatform/osconfig/util"
 )
 
 var (
@@ -39,6 +42,8 @@ var (
 	RPMExists bool
 	// RPMQueryExists indicates whether rpmquery is installed.
 	RPMQueryExists bool
+	// COSPkgInfoExists indicates whether COS package information is available.
+	COSPkgInfoExists bool
 	// GemExists indicates whether gem is installed.
 	GemExists bool
 	// PipExists indicates whether pip is installed.
@@ -48,8 +53,9 @@ var (
 
 	noarch = osinfo.Architecture("noarch")
 
-	// DebugLogger is the debug logger to use.
-	DebugLogger = log.New(ioutil.Discard, "", 0)
+	runner = util.CommandRunner(&util.DefaultRunner{})
+
+	ptyrunner = util.CommandRunner(&ptyRunner{})
 )
 
 // Packages is a selection of packages based on their manager.
@@ -60,6 +66,7 @@ type Packages struct {
 	Deb           []PkgInfo     `json:"deb,omitempty"`
 	Zypper        []PkgInfo     `json:"zypper,omitempty"`
 	ZypperPatches []ZypperPatch `json:"zypperPatches,omitempty"`
+	COS           []PkgInfo     `json:"cos,omitempty"`
 	Gem           []PkgInfo     `json:"gem,omitempty"`
 	Pip           []PkgInfo     `json:"pip,omitempty"`
 	GooGet        []PkgInfo     `json:"googet,omitempty"`
@@ -84,6 +91,7 @@ type WUAPackage struct {
 	Categories               []string
 	CategoryIDs              []string
 	KBArticleIDs             []string
+	MoreInfoURLs             []string
 	SupportURL               string
 	UpdateID                 string
 	RevisionNumber           int32
@@ -95,7 +103,30 @@ type QFEPackage struct {
 	Caption, Description, HotFixID, InstalledOn string
 }
 
-var run = func(cmd *exec.Cmd) ([]byte, error) {
-	DebugLogger.Printf("Running %q with args %q\n", cmd.Path, cmd.Args[1:])
-	return cmd.CombinedOutput()
+func run(ctx context.Context, cmd string, args []string) ([]byte, error) {
+	stdout, stderr, err := runner.Run(ctx, exec.Command(cmd, args...))
+	if err != nil {
+		return nil, fmt.Errorf("error running %s with args %q: %v, stdout: %q, stderr: %q", cmd, args, err, stdout, stderr)
+	}
+	return stdout, nil
+}
+
+type ptyRunner struct{}
+
+func (p *ptyRunner) Run(ctx context.Context, cmd *exec.Cmd) ([]byte, []byte, error) {
+	clog.Debugf(ctx, "Running %q with args %q\n", cmd.Path, cmd.Args[1:])
+	stdout, stderr, err := runWithPty(cmd)
+	clog.Debugf(ctx, "%s %q output:\n%s", cmd.Path, cmd.Args[1:], strings.ReplaceAll(string(stdout), "\n", "\n "))
+	return stdout, stderr, err
+}
+
+// SetCommandRunner allows external clients to set a custom commandRunner.
+func SetCommandRunner(commandRunner util.CommandRunner) {
+	runner = commandRunner
+}
+
+// SetPtyCommandRunner allows external clients to set a custom
+// custom commandRunner.
+func SetPtyCommandRunner(commandRunner util.CommandRunner) {
+	ptyrunner = commandRunner
 }

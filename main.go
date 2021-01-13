@@ -20,21 +20,18 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"runtime/debug"
 	"syscall"
 	"time"
 
 	"github.com/GoogleCloudPlatform/guest-logging-go/logger"
+	"github.com/GoogleCloudPlatform/osconfig/agentconfig"
 	"github.com/GoogleCloudPlatform/osconfig/agentendpoint"
-	"github.com/GoogleCloudPlatform/osconfig/config"
-	"github.com/GoogleCloudPlatform/osconfig/inventory"
-	"github.com/GoogleCloudPlatform/osconfig/packages"
+	"github.com/GoogleCloudPlatform/osconfig/clog"
 	"github.com/GoogleCloudPlatform/osconfig/policies"
 	"github.com/GoogleCloudPlatform/osconfig/tasker"
 	"github.com/tarm/serial"
@@ -54,16 +51,9 @@ func init() {
 		version = "manual-" + time.Now().Format(time.RFC3339)
 	}
 	// We do this here so the -X value doesn't need the full path.
-	config.SetVersion(version)
+	agentconfig.SetVersion(version)
 
-	os.MkdirAll(filepath.Dir(config.RestartFile()), 0755)
-}
-
-type logWriter struct{}
-
-func (l *logWriter) Write(b []byte) (int, error) {
-	logger.Log(logger.LogEntry{Message: string(b), Severity: logger.Debug})
-	return len(b), nil
+	os.MkdirAll(filepath.Dir(agentconfig.RestartFile()), 0755)
 }
 
 type serialPort struct {
@@ -84,14 +74,9 @@ func (s *serialPort) Write(b []byte) (int, error) {
 var deferredFuncs []func()
 
 func run(ctx context.Context) {
-	// Remove any existing restart file.
-	if err := os.Remove(config.RestartFile()); err != nil && !os.IsNotExist(err) {
-		logger.Errorf("Error removing restart signal file: %v", err)
-	}
-
 	// Setup logging.
 	opts := logger.LogOpts{LoggerName: "OSConfigAgent"}
-	if config.Stdout() {
+	if agentconfig.Stdout() {
 		opts.Writers = []io.Writer{os.Stdout}
 	}
 	if runtime.GOOS == "windows" {
@@ -99,38 +84,58 @@ func run(ctx context.Context) {
 	}
 
 	// If this call to WatchConfig fails (like a metadata error) we can't continue.
-	if err := config.WatchConfig(ctx); err != nil {
+	if err := agentconfig.WatchConfig(ctx); err != nil {
 		logger.Init(ctx, opts)
 		logger.Fatalf(err.Error())
 	}
-	opts.Debug = config.Debug()
-	opts.ProjectName = config.ProjectID()
+	opts.Debug = agentconfig.Debug()
+	opts.ProjectName = agentconfig.ProjectID()
 
 	if err := logger.Init(ctx, opts); err != nil {
 		fmt.Printf("Error initializing logger: %v", err)
 		os.Exit(1)
 	}
-	packages.DebugLogger = log.New(&logWriter{}, "", 0)
+	ctx = clog.WithLabels(ctx, map[string]string{"instance_name": agentconfig.Name()})
 
-	deferredFuncs = append(deferredFuncs, logger.Close, func() { logger.Infof("OSConfig Agent (version %s) shutting down.", config.Version()) })
+	// Remove any existing restart file.
+	if err := os.Remove(agentconfig.RestartFile()); err != nil && !os.IsNotExist(err) {
+		clog.Errorf(ctx, "Error removing restart signal file: %v", err)
+	}
+
+	deferredFuncs = append(deferredFuncs, logger.Close, func() { clog.Infof(ctx, "OSConfig Agent (version %s) shutting down.", agentconfig.Version()) })
 
 	obtainLock()
 
 	// obtainLock adds functions to clear the lock at close.
 	logger.DeferredFatalFuncs = append(logger.DeferredFatalFuncs, deferredFuncs...)
-	defer func() {
-		for _, f := range deferredFuncs {
-			f()
+
+	clog.Infof(ctx, "OSConfig Agent (version %s) started.", agentconfig.Version())
+
+	// Call RegisterAgent on start then at least once every day.
+	go func() {
+		for {
+			if agentconfig.TaskNotificationEnabled() || agentconfig.GuestPoliciesEnabled() {
+				if client, err := agentendpoint.NewClient(ctx); err != nil {
+					logger.Errorf(err.Error())
+				} else if err := client.RegisterAgent(ctx); err != nil {
+					logger.Errorf(err.Error())
+				}
+			}
+			time.Sleep(24 * time.Hour)
 		}
 	}()
 
-	logger.Infof("OSConfig Agent (version %s) started.", config.Version())
-
 	switch action := flag.Arg(0); action {
 	case "", "run", "noservice":
-		runLoop(ctx)
+		runServiceLoop(ctx)
 	case "inventory", "osinventory":
-		inventory.Run()
+		client, err := agentendpoint.NewClient(ctx)
+		if err != nil {
+			logger.Fatalf(err.Error())
+		}
+		tasker.Enqueue(ctx, "Report OSInventory", func() {
+			client.ReportInventory(ctx)
+		})
 		tasker.Close()
 		return
 	case "gp", "policies", "guestpolicies", "ospackage":
@@ -151,64 +156,80 @@ func run(ctx context.Context) {
 	}
 }
 
-func runLoop(ctx context.Context) {
+func runTaskLoop(ctx context.Context, c chan struct{}) {
 	var taskNotificationClient *agentendpoint.Client
 	var err error
-
-	go func() {
-		for {
-			config.LogFeatures()
-			if config.TaskNotificationEnabled() && (taskNotificationClient == nil || taskNotificationClient.Closed()) {
-				// Start WaitForTaskNotification if we need to.
-				taskNotificationClient, err = agentendpoint.NewClient(ctx)
-				if err != nil {
-					logger.Errorf(err.Error())
-				} else {
-					taskNotificationClient.WaitForTaskNotification(ctx)
-				}
-			} else if !config.TaskNotificationEnabled() && taskNotificationClient != nil && !taskNotificationClient.Closed() {
-				// Cancel WaitForTaskNotification if we need to, this will block if there is
-				// an existing current task running.
-				if err := taskNotificationClient.Close(); err != nil {
-					logger.Errorf(err.Error())
-				}
+	for {
+		if agentconfig.TaskNotificationEnabled() && (taskNotificationClient == nil || taskNotificationClient.Closed()) {
+			// Start WaitForTaskNotification if we need to.
+			taskNotificationClient, err = agentendpoint.NewClient(ctx)
+			if err != nil {
+				clog.Errorf(ctx, err.Error())
+			} else {
+				taskNotificationClient.WaitForTaskNotification(ctx)
 			}
-			if err := config.WatchConfig(ctx); err != nil {
-				logger.Errorf(err.Error())
-			}
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				continue
+		} else if !agentconfig.TaskNotificationEnabled() && taskNotificationClient != nil && !taskNotificationClient.Closed() {
+			// Cancel WaitForTaskNotification if we need to, this will block if there is
+			// an existing current task running.
+			if err := taskNotificationClient.Close(); err != nil {
+				clog.Errorf(ctx, err.Error())
 			}
 		}
-	}()
 
-	ticker := time.NewTicker(config.SvcPollInterval())
+		// This is just to signal WaitForTaskNotification has run if needed.
+		select {
+		case c <- struct{}{}:
+		default:
+		}
+
+		if err := agentconfig.WatchConfig(ctx); err != nil {
+			clog.Errorf(ctx, err.Error())
+		}
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			continue
+		}
+	}
+}
+
+func runServiceLoop(ctx context.Context) {
+	// This is just to ensure WaitForTaskNotification runs before any periodocs.
+	c := make(chan struct{})
+	// Configures WaitForTaskNotification, waits for config changes with WatchConfig.
+	go runTaskLoop(ctx, c)
+	<-c
+
+	// Runs functions that need to run on a set interval.
+	ticker := time.NewTicker(agentconfig.SvcPollInterval())
+	defer ticker.Stop()
 	for {
-		if _, err := os.Stat(config.RestartFile()); err == nil {
-			logger.Infof("Restart required marker file exists, beginning agent shutdown, waiting for tasks to complete.")
+		if _, err := os.Stat(agentconfig.RestartFile()); err == nil {
+			clog.Infof(ctx, "Restart required marker file exists, beginning agent shutdown, waiting for tasks to complete.")
 			tasker.Close()
-			logger.Infof("All tasks completed, stopping agent.")
+			clog.Infof(ctx, "All tasks completed, stopping agent.")
 			for _, f := range deferredFuncs {
 				f()
 			}
 			os.Exit(2)
 		}
 
-		if config.GuestPoliciesEnabled() {
+		if agentconfig.GuestPoliciesEnabled() {
 			policies.Run(ctx)
 		}
 
-		if config.OSInventoryEnabled() {
+		if agentconfig.OSInventoryEnabled() {
 			// This should always run after ospackage.SetConfig.
-			inventory.Run()
+			tasker.Enqueue(ctx, "Report OSInventory", func() {
+				client, err := agentendpoint.NewClient(ctx)
+				if err != nil {
+					logger.Errorf(err.Error())
+				}
+				client.ReportInventory(ctx)
+				client.Close()
+			})
 		}
-
-		// Return unused memory to ensure our footprint doesn't keep increasing.
-		logger.Debugf("Running debug.FreeOSMemory()")
-		debug.FreeOSMemory()
 
 		select {
 		case <-ticker.C:
@@ -222,6 +243,7 @@ func runLoop(ctx context.Context) {
 func main() {
 	flag.Parse()
 	ctx, cncl := context.WithCancel(context.Background())
+	ctx = clog.WithLabels(ctx, map[string]string{"agent_version": agentconfig.Version()})
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
@@ -238,9 +260,22 @@ func main() {
 	}
 
 	switch action := flag.Arg(0); action {
+	// wuaupdates just runs the packages.WUAUpdates function and returns it's output
+	// as JSON on stdout. This avoids memory issues with the WUA api since this is
+	// called often for Windows inventory runs.
+	case "wuaupdates":
+		if err := wuaUpdates(flag.Arg(1)); err != nil {
+			fmt.Fprint(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Exit(0)
 	case "", "run":
 		runService(ctx)
 	default:
 		run(ctx)
+	}
+
+	for _, f := range deferredFuncs {
+		f()
 	}
 }
