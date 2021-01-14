@@ -101,9 +101,17 @@ Files: debian/extra/vendor/github.com/jstemmer/*
 Copyright: 2012, Joel Stemmer
 License: Expat
 
+Files: debian/extra/vendor/github.com/julienschmidt/*
+Copyright: 2013, Julien Schmidt
+License: BSD-3-clause
+
 Files: debian/extra/vendor/github.com/kylelemons/*
 Copyright: 2011-2015, 2017-2019, Google Inc.
 License: Apache-2.0
+
+Files: debian/extra/vendor/github.com/sirupsen/*
+Copyright: 2014 Simon Eskildsen
+License: Expat
 
 Files: debian/extra/vendor/github.com/tarm/*
 Copyright: 2009, 2010, 2013, 2017-2019, The Go Authors.
@@ -113,6 +121,12 @@ Files: debian/extra/vendor/github.com/ulikunitz/*
 Copyright: 2014-2020, Ulrich Kunitz
  2019, Google Inc.
 License: Apache-2.0
+
+Files: debian/extra/vendor/go.chromium.org/*
+
+Copyright: 2014-2020, The LUCI Authors
+           2014, The Go Authors
+License: Apache-2
 
 Files: debian/extra/vendor/go.opencensus.io/*
 Copyright: 2017-2019, OpenCensus Authors
@@ -149,14 +163,6 @@ License: Apache-2.0
 Files: debian/extra/vendor/google.golang.org/protobuf/*
 Copyright: 2009-2020, The Go Authors.
 License: BSD-3-clause
-
-Files: debian/extra/vendor/honnef.co/*
-Copyright: 2018-2019, Dominik Honnef
-           2009-2013, The Go Authors
-License: Apache-2.0 or BSD-3-clause or Expat
-Comment: No explicit license found, using license(s) from:
- debian/extra/vendor/honnef.co/go/tools/LICENSE
- debian/extra/vendor/honnef.co/go/tools/LICENSE-THIRD-PARTY
 
 License: Apache-2.0
  Licensed under the Apache License, Version 2.0 (the "License");
