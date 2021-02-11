@@ -1,3 +1,11 @@
+google-osconfig-agent (20210209.00-1) hirsute; urgency=medium
+
+  * New upstream release (LP: #1911689)
+  * debian/gbp.conf: Use proper tag format for Ubuntu
+  * debian/postrm: Add double quotes around $1
+
+ -- Balint Reczey <rbalint@ubuntu.com>  Thu, 11 Feb 2021 15:59:05 +0100
+
 google-osconfig-agent (20210112.00-0ubuntu1) hirsute; urgency=medium
 
   * New upstream release (LP: #1911689)
