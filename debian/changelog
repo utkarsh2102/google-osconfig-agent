@@ -1,4 +1,4 @@
-google-osconfig-agent (20210209.00-1) hirsute; urgency=medium
+google-osconfig-agent (20210209.00-0ubuntu1) hirsute; urgency=medium
 
   * New upstream release (LP: #1911689)
   * debian/gbp.conf: Use proper tag format for Ubuntu
