@@ -1,0 +1,51 @@
+google-osconfig-agent (20210219.00-0ubuntu1) hirsute; urgency=medium
+
+  * New upstream release
+  * debian/copyright: Fix format
+
+ -- Balint Reczey <rbalint@ubuntu.com>  Mon, 01 Mar 2021 15:34:47 +0100
+
+google-osconfig-agent (20210218.00-0ubuntu1) hirsute; urgency=medium
+
+  * New upstream release
+  * Update vendored modules
+
+ -- Balint Reczey <rbalint@ubuntu.com>  Thu, 18 Feb 2021 20:50:28 +0100
+
+google-osconfig-agent (20210209.00-0ubuntu1) hirsute; urgency=medium
+
+  * New upstream release (LP: #1911689)
+  * debian/gbp.conf: Use proper tag format for Ubuntu
+  * debian/postrm: Add double quotes around $1
+
+ -- Balint Reczey <rbalint@ubuntu.com>  Thu, 11 Feb 2021 15:59:05 +0100
+
+google-osconfig-agent (20210112.00-0ubuntu1) hirsute; urgency=medium
+
+  * New upstream release (LP: #1911689)
+  * Update vendored go modules
+  * debian/copyright: Update with vendored module changes
+
+ -- Balint Reczey <rbalint@ubuntu.com>  Thu, 14 Jan 2021 14:55:46 +0100
+
+google-osconfig-agent (20200625.00-0ubuntu3) groovy; urgency=medium
+
+  * debian/patches/: Drop skipping DeepEqual check
+  * debian/rules: Build the package as preferred by upstream (LP: #1900897)
+    - Strip the binary
+    - Set main.version
+
+ -- Balint Reczey <rbalint@ubuntu.com>  Wed, 21 Oct 2020 21:34:05 +0200
+
+google-osconfig-agent (20200625.00-0ubuntu2) groovy; urgency=medium
+
+  * debian/extra/vendor/*: Add vendored module sources (LP: #1896246)
+  * debian/control: Drop unused Go build dependencies
+
+ -- Balint Reczey <rbalint@ubuntu.com>  Wed, 30 Sep 2020 16:14:25 +0200
+
+google-osconfig-agent (20200625.00-0ubuntu1) groovy; urgency=medium
+
+  * Initial release (LP: #1887408)
+
+ -- Balint Reczey <rbalint@ubuntu.com>  Mon, 29 Jun 2020 19:00:54 +0200
