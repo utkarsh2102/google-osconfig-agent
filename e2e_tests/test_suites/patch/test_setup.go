@@ -80,14 +80,16 @@ echo 'curl -X PUT --data "1" http://metadata.google.internal/computeMetadata/v1/
 chmod +x ./linux_local_pre_patch_script.sh
 `
 
-	enablePatch = compute.BuildInstanceMetadataItem("os-config-enabled-prerelease-features", "ospatch")
+	enableOsconfig  = compute.BuildInstanceMetadataItem("enable-osconfig", "true")
+	disableFeatures = compute.BuildInstanceMetadataItem("osconfig-disabled-features", "guestpolicies,osinventory")
 
 	windowsSetup = &patchTestSetup{
 		assertTimeout: 60 * time.Minute,
 		metadata: []*computeApi.MetadataItems{
 			compute.BuildInstanceMetadataItem("sysprep-specialize-script-ps1", windowsSetWsus),
 			compute.BuildInstanceMetadataItem("windows-startup-script-ps1", windowsRecordBoot+utils.InstallOSConfigGooGet()+windowsLocalPostPatchScript),
-			enablePatch,
+			enableOsconfig,
+			disableFeatures,
 		},
 		machineType: "e2-standard-4",
 	}
@@ -95,41 +97,46 @@ chmod +x ./linux_local_pre_patch_script.sh
 		assertTimeout: 10 * time.Minute,
 		metadata: []*computeApi.MetadataItems{
 			compute.BuildInstanceMetadataItem("startup-script", linuxRecordBoot+utils.InstallOSConfigDeb()+linuxLocalPrePatchScript),
-			enablePatch,
+			enableOsconfig,
+			disableFeatures,
 		},
-		machineType: "e2-standard-2",
+		machineType: "e2-medium",
 	}
 	el6Setup = &patchTestSetup{
 		assertTimeout: 15 * time.Minute,
 		metadata: []*computeApi.MetadataItems{
 			compute.BuildInstanceMetadataItem("startup-script", linuxRecordBoot+utils.InstallOSConfigEL6()+linuxLocalPrePatchScript),
-			enablePatch,
+			enableOsconfig,
+			disableFeatures,
 		},
-		machineType: "e2-standard-2",
+		machineType: "e2-medium",
 	}
 	el7Setup = &patchTestSetup{
 		assertTimeout: 15 * time.Minute,
 		metadata: []*computeApi.MetadataItems{
 			compute.BuildInstanceMetadataItem("startup-script", linuxRecordBoot+utils.InstallOSConfigEL7()+linuxLocalPrePatchScript),
-			enablePatch,
+			enableOsconfig,
+			disableFeatures,
 		},
-		machineType: "e2-standard-2",
+		machineType: "e2-medium",
 	}
 	el8Setup = &patchTestSetup{
 		assertTimeout: 15 * time.Minute,
 		metadata: []*computeApi.MetadataItems{
 			compute.BuildInstanceMetadataItem("startup-script", linuxRecordBoot+utils.InstallOSConfigEL8()+linuxLocalPrePatchScript),
-			enablePatch,
+			enableOsconfig,
+			disableFeatures,
 		},
-		machineType: "e2-standard-2",
+		machineType: "e2-medium",
 	}
 	suseSetup = &patchTestSetup{
 		assertTimeout: 15 * time.Minute,
 		metadata: []*computeApi.MetadataItems{
 			compute.BuildInstanceMetadataItem("startup-script", linuxRecordBoot+utils.InstallOSConfigSUSE()+linuxLocalPrePatchScript),
-			enablePatch,
+			enableOsconfig,
+			disableFeatures,
 		},
-		machineType: "e2-standard-2",
+		machineType: "e2-medium",
 	}
 )
 

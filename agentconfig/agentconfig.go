@@ -90,16 +90,39 @@ var (
 	// Current supported capabilites for this agent.
 	// These are matched server side to what tasks this agent can
 	// perform.
-	capabilities = []string{"PATCH_GA", "GUEST_POLICY_BETA"}
+	capabilities = []string{"PATCH_GA", "GUEST_POLICY_BETA", "CONFIG_V1"}
 
 	osConfigWatchConfigTimeout = 10 * time.Minute
+
+	defaultClient = &http.Client{
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   2 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+		},
+	}
+
+	freeOSMemory          = strings.ToLower(os.Getenv("OSCONFIG_FREE_OS_MEMORY"))
+	disableInventoryWrite = strings.ToLower(os.Getenv("OSCONFIG_DISABLE_INVENTORY_WRITE"))
 )
 
 type config struct {
-	osInventoryEnabled, guestPoliciesEnabled, taskNotificationEnabled, debugEnabled       bool
-	svcEndpoint, googetRepoFilePath, zypperRepoFilePath, yumRepoFilePath, aptRepoFilePath string
-	numericProjectID, osConfigPollInterval                                                int
-	projectID, instanceZone, instanceName, instanceID                                     string
+	aptRepoFilePath         string
+	instanceName            string
+	instanceZone            string
+	projectID               string
+	svcEndpoint             string
+	googetRepoFilePath      string
+	zypperRepoFilePath      string
+	yumRepoFilePath         string
+	instanceID              string
+	numericProjectID        int64
+	osConfigPollInterval    int
+	debugEnabled            bool
+	taskNotificationEnabled bool
+	guestPoliciesEnabled    bool
+	osInventoryEnabled      bool
 }
 
 func (c *config) parseFeatures(features string, enabled bool) {
@@ -130,8 +153,8 @@ func getAgentConfig() config {
 }
 
 type lastEtag struct {
-	mu   sync.RWMutex
 	Etag string
+	mu   sync.RWMutex
 }
 
 func (e *lastEtag) set(etag string) {
@@ -162,30 +185,30 @@ type metadataJSON struct {
 
 type instanceJSON struct {
 	Attributes attributesJSON
+	ID         *json.Number
 	Zone       string
 	Name       string
-	ID         *json.Number
 }
 
 type projectJSON struct {
 	Attributes       attributesJSON
 	ProjectID        string
-	NumericProjectID int
+	NumericProjectID int64
 }
 
 type attributesJSON struct {
+	PollIntervalOld       *json.Number `json:"os-config-poll-interval"`
+	PollInterval          *json.Number `json:"osconfig-poll-interval"`
 	InventoryEnabledOld   string       `json:"os-inventory-enabled"`
 	InventoryEnabled      string       `json:"enable-os-inventory"`
 	PreReleaseFeaturesOld string       `json:"os-config-enabled-prerelease-features"`
 	PreReleaseFeatures    string       `json:"osconfig-enabled-prerelease-features"`
-	OSConfigEnabled       string       `json:"enable-osconfig"`
-	DisabledFeatures      string       `json:"osconfig-disabled-features"`
 	DebugEnabledOld       string       `json:"enable-os-config-debug"`
 	LogLevel              string       `json:"osconfig-log-level"`
 	OSConfigEndpointOld   string       `json:"os-config-endpoint"`
 	OSConfigEndpoint      string       `json:"osconfig-endpoint"`
-	PollIntervalOld       *json.Number `json:"os-config-poll-interval"`
-	PollInterval          *json.Number `json:"osconfig-poll-interval"`
+	OSConfigEnabled       string       `json:"enable-osconfig"`
+	DisabledFeatures      string       `json:"osconfig-disabled-features"`
 }
 
 func createConfigFromMetadata(md metadataJSON) *config {
@@ -362,7 +385,7 @@ func getMetadata(suffix string) ([]byte, string, error) {
 		return nil, "", err
 	}
 	req.Header.Add("Metadata-Flavor", "Google")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := defaultClient.Do(req)
 	if err != nil {
 		return nil, "", err
 	}
@@ -501,7 +524,7 @@ func YumRepoDir() string {
 	return yumRepoDir
 }
 
-// YumRepoFilePath is the location where the zypper repo file will be created.
+// YumRepoFilePath is the location where the yum repo file will be created.
 func YumRepoFilePath() string {
 	return getAgentConfig().yumRepoFilePath
 }
@@ -511,7 +534,7 @@ func AptRepoDir() string {
 	return aptRepoDir
 }
 
-// AptRepoFilePath is the location where the zypper repo file will be created.
+// AptRepoFilePath is the location where the apt repo file will be created.
 func AptRepoFilePath() string {
 	return getAgentConfig().aptRepoFilePath
 }
@@ -548,7 +571,7 @@ func Instance() string {
 }
 
 // NumericProjectID is the numeric project ID of the instance.
-func NumericProjectID() int {
+func NumericProjectID() int64 {
 	return getAgentConfig().numericProjectID
 }
 
@@ -573,8 +596,8 @@ func ID() string {
 }
 
 type idToken struct {
-	raw string
 	exp *time.Time
+	raw string
 	sync.Mutex
 }
 
@@ -644,4 +667,19 @@ func RestartFile() string {
 	}
 
 	return restartFileLinux
+}
+
+// UserAgent for creating http/grpc clients.
+func UserAgent() string {
+	return "google-osconfig-agent/" + Version()
+}
+
+// DisableInventoryWrite returns true if the DisableInventoryWrite setting is set.
+func DisableInventoryWrite() bool {
+	return strings.EqualFold(disableInventoryWrite, "true") || disableInventoryWrite == "1"
+}
+
+// FreeOSMemory returns true if the FreeOSMemory setting is set.
+func FreeOSMemory() bool {
+	return strings.EqualFold(freeOSMemory, "true") || freeOSMemory == "1"
 }

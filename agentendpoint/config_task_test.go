@@ -72,6 +72,10 @@ func (r *testResource) ManagedResources() *config.ManagedResources {
 	return nil
 }
 
+func (r *testResource) PopulateOutput(rCompliance *agentendpointpb.OSPolicyResourceCompliance) error {
+	return nil
+}
+
 type agentEndpointServiceConfigTestServer struct {
 	lastReportTaskCompleteRequest *agentendpointpb.ReportTaskCompleteRequest
 	progressError                 chan struct{}
@@ -136,65 +140,76 @@ func genTestResourceCompliance(id string, steps int, inDesiredState bool) *agent
 	// TODO: test various types of executions.
 	ret := &agentendpointpb.OSPolicyResourceCompliance{
 		OsPolicyResourceId: id,
-		ConfigSteps:        make([]*agentendpointpb.OSPolicyResourceConfigStep, 4),
 	}
 
 	// Validation
 	if steps > 0 {
 		outcome := agentendpointpb.OSPolicyResourceConfigStep_FAILED
 		state := agentendpointpb.OSPolicyComplianceState_UNKNOWN
+		errMsg := "Error validating resource: " + errTest.Error()
 		if steps > 1 {
 			outcome = agentendpointpb.OSPolicyResourceConfigStep_SUCCEEDED
+			errMsg = ""
 		}
-		ret.ConfigSteps[0] = &agentendpointpb.OSPolicyResourceConfigStep{
-			Type:    agentendpointpb.OSPolicyResourceConfigStep_VALIDATION,
-			Outcome: outcome,
-		}
+		ret.ConfigSteps = append(ret.GetConfigSteps(), &agentendpointpb.OSPolicyResourceConfigStep{
+			Type:         agentendpointpb.OSPolicyResourceConfigStep_VALIDATION,
+			Outcome:      outcome,
+			ErrorMessage: errMsg,
+		})
 		ret.State = state
 	}
 	// DesiredStateCheck
 	if steps > 1 {
 		outcome := agentendpointpb.OSPolicyResourceConfigStep_SUCCEEDED
 		state := agentendpointpb.OSPolicyComplianceState_NON_COMPLIANT
+		errMsg := ""
 		if steps == 2 && !inDesiredState {
 			outcome = agentendpointpb.OSPolicyResourceConfigStep_FAILED
 			state = agentendpointpb.OSPolicyComplianceState_UNKNOWN
+			errMsg = "Error running desired state check: " + errTest.Error()
 		} else if inDesiredState {
 			state = agentendpointpb.OSPolicyComplianceState_COMPLIANT
 		}
-		ret.ConfigSteps[1] = &agentendpointpb.OSPolicyResourceConfigStep{
-			Type:    agentendpointpb.OSPolicyResourceConfigStep_DESIRED_STATE_CHECK,
-			Outcome: outcome,
-		}
+		ret.ConfigSteps = append(ret.GetConfigSteps(), &agentendpointpb.OSPolicyResourceConfigStep{
+			Type:         agentendpointpb.OSPolicyResourceConfigStep_DESIRED_STATE_CHECK,
+			Outcome:      outcome,
+			ErrorMessage: errMsg,
+		})
 		ret.State = state
 	}
 	// EnforceDesiredState
 	if steps > 2 {
 		outcome := agentendpointpb.OSPolicyResourceConfigStep_FAILED
 		state := agentendpointpb.OSPolicyComplianceState_UNKNOWN
+		errMsg := "Error running enforcement: " + errTest.Error()
 		if steps > 3 {
 			outcome = agentendpointpb.OSPolicyResourceConfigStep_SUCCEEDED
+			errMsg = ""
 		}
-		ret.ConfigSteps[2] = &agentendpointpb.OSPolicyResourceConfigStep{
-			Type:    agentendpointpb.OSPolicyResourceConfigStep_DESIRED_STATE_ENFORCEMENT,
-			Outcome: outcome,
-		}
+		ret.ConfigSteps = append(ret.GetConfigSteps(), &agentendpointpb.OSPolicyResourceConfigStep{
+			Type:         agentendpointpb.OSPolicyResourceConfigStep_DESIRED_STATE_ENFORCEMENT,
+			Outcome:      outcome,
+			ErrorMessage: errMsg,
+		})
 		ret.State = state
 	}
-	// DesiredStateCheckPostEnforcement{
-	if steps > 3 {
+	// DesiredStateCheckPostEnforcement
+	if steps > 2 {
 		outcome := agentendpointpb.OSPolicyResourceConfigStep_SUCCEEDED
 		state := agentendpointpb.OSPolicyComplianceState_NON_COMPLIANT
+		errMsg := ""
 		if steps == 4 {
 			outcome = agentendpointpb.OSPolicyResourceConfigStep_FAILED
 			state = agentendpointpb.OSPolicyComplianceState_UNKNOWN
-		} else {
+			errMsg = "Error running post config desired state check: " + errTest.Error()
+		} else if steps == 5 {
 			state = agentendpointpb.OSPolicyComplianceState_COMPLIANT
 		}
-		ret.ConfigSteps[3] = &agentendpointpb.OSPolicyResourceConfigStep{
-			Type:    agentendpointpb.OSPolicyResourceConfigStep_DESIRED_STATE_CHECK_POST_ENFORCEMENT,
-			Outcome: outcome,
-		}
+		ret.ConfigSteps = append(ret.GetConfigSteps(), &agentendpointpb.OSPolicyResourceConfigStep{
+			Type:         agentendpointpb.OSPolicyResourceConfigStep_DESIRED_STATE_CHECK_POST_ENFORCEMENT,
+			Outcome:      outcome,
+			ErrorMessage: errMsg,
+		})
 		ret.State = state
 	}
 	return ret
@@ -223,8 +238,8 @@ func TestRunApplyConfig(t *testing.T) {
 	ctx := context.Background()
 	sameStateTimeWindow = 0
 	res := &testResource{}
-	newResource = func(r *agentendpointpb.OSPolicy_Resource) resourceIface {
-		return resourceIface(res)
+	newResource = func(r *agentendpointpb.OSPolicy_Resource) *resource {
+		return &resource{resourceIface: resourceIface(res)}
 	}
 
 	testConfig := &agentendpointpb.ApplyConfigTask{
@@ -252,6 +267,44 @@ func TestRunApplyConfig(t *testing.T) {
 			),
 			testConfig,
 			5, 5, 5, true,
+		},
+		{
+			"ValidationMode",
+			configOutputGen("", agentendpointpb.ApplyConfigTaskOutput_SUCCEEDED,
+				[]*agentendpointpb.ApplyConfigTaskOutput_OSPolicyResult{
+					{
+						OsPolicyId: "p1",
+						OsPolicyResourceCompliances: []*agentendpointpb.OSPolicyResourceCompliance{
+							{
+								State:              agentendpointpb.OSPolicyComplianceState_NON_COMPLIANT,
+								OsPolicyResourceId: "r1",
+								ConfigSteps: []*agentendpointpb.OSPolicyResourceConfigStep{
+									{
+										Type:    agentendpointpb.OSPolicyResourceConfigStep_VALIDATION,
+										Outcome: agentendpointpb.OSPolicyResourceConfigStep_SUCCEEDED,
+									},
+									{
+										Type:    agentendpointpb.OSPolicyResourceConfigStep_DESIRED_STATE_CHECK,
+										Outcome: agentendpointpb.OSPolicyResourceConfigStep_SUCCEEDED,
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+			&agentendpointpb.ApplyConfigTask{
+				OsPolicies: []*agentendpointpb.ApplyConfigTask_OSPolicy{
+					{
+						Id:   "p1",
+						Mode: agentendpointpb.OSPolicy_VALIDATION,
+						Resources: []*agentendpointpb.OSPolicy_Resource{
+							genTestResource("r1"),
+						},
+					},
+				},
+			},
+			5, 5, 5, false,
 		},
 		{
 			"EnforceDesiredState",
@@ -360,6 +413,27 @@ func TestRunApplyConfig(t *testing.T) {
 
 			if diff := cmp.Diff(tt.wantComReq, srv.lastReportTaskCompleteRequest, protocmp.Transform()); diff != "" {
 				t.Fatalf("ReportTaskCompleteRequest mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestTruncateMessage(t *testing.T) {
+	tests := []struct {
+		name    string
+		message string
+		want    string
+		length  int
+	}{
+		{"less than length", "test", "test", 5},
+		{"equal to length", "test", "test", 4},
+		{"greater than length", "this is a longer message", "this i... message", 17},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := truncateMessage(tt.message, tt.length)
+			if got != tt.want {
+				t.Errorf("%s: got (%q) != want (%q)", tt.name, got, tt.want)
 			}
 		})
 	}

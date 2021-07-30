@@ -101,11 +101,10 @@ func executeCommand(ctx context.Context, path string, args []string) (int32, err
 }
 
 type execTask struct {
-	client *Client
-
-	TaskID    string
-	Task      *execStepTask
 	StartedAt time.Time `json:",omitempty"`
+	client    *Client
+	Task      *execStepTask
+	TaskID    string
 }
 
 type execStepTask struct {
@@ -126,7 +125,7 @@ func (e *execTask) reportCompletedState(ctx context.Context, errMsg string, outp
 }
 
 func (e *execTask) run(ctx context.Context) error {
-	clog.Infof(ctx, "Beginning exec task")
+	clog.Infof(ctx, "Beginning ExecStepTask")
 	e.StartedAt = time.Now()
 	req := &agentendpointpb.ReportTaskProgressRequest{
 		TaskId:   e.TaskID,
@@ -206,7 +205,7 @@ func (e *execTask) run(ctx context.Context) error {
 		err = fmt.Errorf("invalid interpreter %q", stepConfig.GetInterpreter())
 	}
 	if err != nil {
-		msg := fmt.Sprintf("Error running exec task: %v", err)
+		msg := fmt.Sprintf("Error running ExecStepTask: %v", err)
 		clog.Errorf(ctx, msg)
 		return e.reportCompletedState(ctx, msg, &agentendpointpb.ReportTaskCompleteRequest_ExecStepTaskOutput{
 			ExecStepTaskOutput: &agentendpointpb.ExecStepTaskOutput{
@@ -216,15 +215,19 @@ func (e *execTask) run(ctx context.Context) error {
 		})
 	}
 
-	return e.reportCompletedState(ctx, "", &agentendpointpb.ReportTaskCompleteRequest_ExecStepTaskOutput{
+	if err := e.reportCompletedState(ctx, "", &agentendpointpb.ReportTaskCompleteRequest_ExecStepTaskOutput{
 		ExecStepTaskOutput: &agentendpointpb.ExecStepTaskOutput{
 			State:    agentendpointpb.ExecStepTaskOutput_COMPLETED,
 			ExitCode: exitCode,
 		},
-	})
+	}); err != nil {
+		return err
+	}
+	clog.Infof(ctx, "Successfully completed ApplyConfigTask")
+	return nil
 }
 
-// RunExecStep runs an exec step task.
+// RunExecStep runs an ExecStepTask.
 func (c *Client) RunExecStep(ctx context.Context, task *agentendpointpb.Task) error {
 	ctx = clog.WithLabels(ctx, task.GetServiceLabels())
 	e := &execTask{

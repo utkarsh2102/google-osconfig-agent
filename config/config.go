@@ -18,9 +18,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 
 	agentendpointpb "google.golang.org/genproto/googleapis/cloud/osconfig/agentendpoint/v1"
 )
+
+var goos = runtime.GOOS
 
 // OSPolicyResource is a single OSPolicy resource.
 type OSPolicyResource struct {
@@ -46,6 +49,7 @@ type resource interface {
 	validate(context.Context) (*ManagedResources, error)
 	checkState(context.Context) (bool, error)
 	enforceState(context.Context) (bool, error)
+	populateOutput(*agentendpointpb.OSPolicyResourceCompliance)
 	cleanup(context.Context) error
 }
 
@@ -66,11 +70,9 @@ func (r *OSPolicyResource) Validate(ctx context.Context) error {
 		r.resource = resource(&repositoryResource{OSPolicy_Resource_RepositoryResource: x.Repository})
 	case *agentendpointpb.OSPolicy_Resource_File_:
 		r.resource = resource(&fileResource{OSPolicy_Resource_FileResource: x.File})
-		/*
-			case *agentendpointpb.ApplyConfigTask_Config_Resource_Exec:
-			case *agentendpointpb.ApplyConfigTask_Config_Resource_Archive:
-			case *agentendpointpb.ApplyConfigTask_Config_Resource_Srvc:
-		*/
+	case *agentendpointpb.OSPolicy_Resource_Exec:
+		r.resource = resource(&execResource{OSPolicy_Resource_ExecResource: x.Exec})
+
 	case nil:
 		return errors.New("ResourceType field not set")
 	default:
@@ -104,6 +106,16 @@ func (r *OSPolicyResource) EnforceState(ctx context.Context) error {
 	inDesiredState, err := r.enforceState(ctx)
 	r.inDesiredState = inDesiredState
 	return err
+}
+
+// PopulateOutput populates the output field of the provided
+// OSPolicyResourceCompliance for this resource.
+func (r *OSPolicyResource) PopulateOutput(rCompliance *agentendpointpb.OSPolicyResourceCompliance) error {
+	if r.resource == nil {
+		return errors.New("PopulateOutput run before Validate")
+	}
+	r.populateOutput(rCompliance)
+	return nil
 }
 
 // Cleanup cleans up any temporary files that this resource may have created.

@@ -36,14 +36,12 @@ func zypperRepositories(ctx context.Context, repos []*agentendpointpb.ZypperRepo
 		baseurl=https://repo1-url
 		enabled=1
 		gpgcheck=1
-		repo_gpgcheck=1
 		gpgkey=http://repo1-url/gpg
 		[repo2]
 		display_name=repo2-name
 		baseurl=https://repo2-url
 		enabled=1
 		gpgcheck=1
-		repo_gpgcheck=1
 	*/
 	var buf bytes.Buffer
 	buf.WriteString("# Repo file managed by Google OSConfig agent\n")
@@ -55,7 +53,7 @@ func zypperRepositories(ctx context.Context, repos []*agentendpointpb.ZypperRepo
 			buf.WriteString(fmt.Sprintf("name=%s\n", repo.DisplayName))
 		}
 		buf.WriteString(fmt.Sprintf("baseurl=%s\n", repo.BaseUrl))
-		buf.WriteString("enabled=1\ngpgcheck=1\nrepo_gpgcheck=1\n")
+		buf.WriteString("enabled=1\ngpgcheck=1\n")
 		if len(repo.GpgKeys) > 0 {
 			buf.WriteString(fmt.Sprintf("gpgkey=%s\n", repo.GpgKeys[0]))
 			for _, k := range repo.GpgKeys[1:] {
@@ -71,7 +69,7 @@ func zypperChanges(ctx context.Context, zypperInstalled, zypperRemoved, zypperUp
 	var err error
 	var errs []string
 
-	var installed []packages.PkgInfo
+	var installed []*packages.PkgInfo
 	if len(zypperInstalled) > 0 || len(zypperUpdated) > 0 || len(zypperRemoved) > 0 {
 		installed, err = packages.InstalledRPMPackages(ctx)
 		if err != nil {
@@ -79,7 +77,7 @@ func zypperChanges(ctx context.Context, zypperInstalled, zypperRemoved, zypperUp
 		}
 	}
 
-	var updates []packages.PkgInfo
+	var updates []*packages.PkgInfo
 	if len(zypperUpdated) > 0 {
 		updates, err = packages.ZypperUpdates(ctx)
 		if err != nil {
