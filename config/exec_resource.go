@@ -17,18 +17,21 @@ package config
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/osconfig/clog"
 	"github.com/GoogleCloudPlatform/osconfig/util"
 
 	agentendpointpb "google.golang.org/genproto/googleapis/cloud/osconfig/agentendpoint/v1"
 )
+
+const maxExecOutputSize = 100 * 1024
 
 var runner = util.CommandRunner(&util.DefaultRunner{})
 
@@ -36,6 +39,7 @@ type execResource struct {
 	*agentendpointpb.OSPolicy_Resource_ExecResource
 
 	validatePath, enforcePath, tempDir string
+	enforceOutput                      []byte
 }
 
 // TODO: use a persistent cache for downloaded files so we dont need to redownload them each time
@@ -44,31 +48,33 @@ func (e *execResource) download(ctx context.Context, execR *agentendpointpb.OSPo
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp dir: %s", err)
 	}
-	// File extensions are impoprtant on Windows.
+
+	// File extensions are important on Windows.
 	var name string
+	perms := os.FileMode(0644)
 	switch execR.GetSource().(type) {
 	case *agentendpointpb.OSPolicy_Resource_ExecResource_Exec_Script:
 		switch execR.GetInterpreter() {
 		case agentendpointpb.OSPolicy_Resource_ExecResource_Exec_NONE:
-			if runtime.GOOS == "windows" {
-				name = filepath.Join(tmpDir, "script.cmd")
+			if goos == "windows" {
+				name = "script.cmd"
 			} else {
-				name = filepath.Join(tmpDir, "script")
+				name = "script"
 			}
+			perms = os.FileMode(0755)
 		case agentendpointpb.OSPolicy_Resource_ExecResource_Exec_SHELL:
-			if runtime.GOOS == "windows" {
-				name = filepath.Join(tmpDir, "script.cmd")
+			if goos == "windows" {
+				name = "script.cmd"
 			} else {
-				name = filepath.Join(tmpDir, "script.sh")
+				name = "script.sh"
 			}
 		case agentendpointpb.OSPolicy_Resource_ExecResource_Exec_POWERSHELL:
-			name = filepath.Join(tmpDir, "script.ps1")
+			name = "script.ps1"
 		default:
 			return "", fmt.Errorf("unsupported interpreter %q", execR.GetInterpreter())
 		}
-		name := filepath.Join(tmpDir, "")
-		_, err := util.AtomicWriteFileStream(strings.NewReader(execR.GetScript()), "", name, 0644)
-		if err != nil {
+		name = filepath.Join(tmpDir, name)
+		if _, err := util.AtomicWriteFileStream(strings.NewReader(execR.GetScript()), "", name, perms); err != nil {
 			return "", err
 		}
 
@@ -84,12 +90,15 @@ func (e *execResource) download(ctx context.Context, execR *agentendpointpb.OSPo
 		default:
 			return "", fmt.Errorf("unsupported File %v", execR.GetFile())
 		}
+		if execR.GetInterpreter() == agentendpointpb.OSPolicy_Resource_ExecResource_Exec_NONE {
+			perms = os.FileMode(0755)
+		}
 		name = filepath.Join(tmpDir, name)
-		if _, err := downloadFile(ctx, name, execR.GetFile()); err != nil {
+		if _, err := downloadFile(ctx, name, perms, execR.GetFile()); err != nil {
 			return "", err
 		}
 	default:
-		return "", fmt.Errorf("unrecognized Source type for FileResource: %q", execR.GetSource())
+		return "", fmt.Errorf("unrecognized Source type for ExecResource: %q", execR.GetSource())
 	}
 
 	return name, nil
@@ -107,29 +116,36 @@ func (e *execResource) validate(ctx context.Context) (*ManagedResources, error) 
 		return nil, err
 	}
 
-	e.enforcePath, err = e.download(ctx, e.GetEnforce())
-	if err != nil {
-		return nil, err
+	// Assume lack of Enforce means policy is in VALIDATE mode.
+	if e.GetEnforce() != nil {
+		e.enforcePath, err = e.download(ctx, e.GetEnforce())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return nil, nil
 }
 
 func (e *execResource) run(ctx context.Context, name string, execR *agentendpointpb.OSPolicy_Resource_ExecResource_Exec) ([]byte, []byte, int, error) {
+	if execR == nil {
+		return nil, nil, 0, fmt.Errorf("ExecResource Exec cannot be nil")
+	}
+
 	var cmd string
 	var args []string
 	switch execR.GetInterpreter() {
 	case agentendpointpb.OSPolicy_Resource_ExecResource_Exec_NONE:
 		cmd = name
 	case agentendpointpb.OSPolicy_Resource_ExecResource_Exec_SHELL:
-		if runtime.GOOS == "windows" {
+		if goos == "windows" {
 			cmd = name
 		} else {
 			args = append([]string{name})
 			cmd = "/bin/sh"
 		}
 	case agentendpointpb.OSPolicy_Resource_ExecResource_Exec_POWERSHELL:
-		if runtime.GOOS != "windows" {
+		if goos != "windows" {
 			return nil, nil, 0, fmt.Errorf("interpreter %q can only be used on Windows systems", execR.GetInterpreter())
 		}
 		args = append([]string{"-File", name})
@@ -137,10 +153,12 @@ func (e *execResource) run(ctx context.Context, name string, execR *agentendpoin
 	default:
 		return nil, nil, 0, fmt.Errorf("unsupported interpreter %q", execR.GetInterpreter())
 	}
+	args = append(args, execR.GetArgs()...)
 
 	stdout, stderr, err := runner.Run(ctx, exec.Command(cmd, args...))
-	code := -1
+	code := 0
 	if err != nil {
+		code = -1
 		if v, ok := err.(*exec.ExitError); ok {
 			code = v.ExitCode()
 		}
@@ -177,9 +195,49 @@ func (e *execResource) enforceState(ctx context.Context) (inDesiredState bool, e
 	case -1:
 		return false, err
 	case 100:
-		return true, nil
+		out, err := execOutput(ctx, e.GetEnforce().GetOutputFilePath())
+		e.enforceOutput = out
+		return true, err
 	default:
 		return false, fmt.Errorf("unexpected return code from enforce: %d, stdout: %s, stderr: %s", code, stdout, stderr)
+	}
+}
+
+func execOutput(ctx context.Context, outputFilePath string) ([]byte, error) {
+	if outputFilePath == "" {
+		return nil, nil
+	}
+
+	clog.Debugf(ctx, "Reading %q for ExecResource output", outputFilePath)
+
+	f, err := os.Open(outputFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening OutputFilePath: %v", err)
+	}
+	defer f.Close()
+
+	// Make a byte slice with a capacity of 1 over maxSize (for checking maxExecOutputSize).
+	output := make([]byte, 0, maxExecOutputSize+1)
+	// Read up to capactity.
+	n, err := f.Read(output[:cap(output)])
+	output = output[:len(output)+n]
+	if err != nil && err != io.EOF {
+		return output, fmt.Errorf("error reading from OutputFilePath: %v", err)
+	}
+	// Return the output up to this point and an error if total size is greater than maxExecOutputSize.
+	if n > maxExecOutputSize {
+		return output[:maxExecOutputSize], fmt.Errorf("contents of OutputFilePath greater than %dK", maxExecOutputSize/1024)
+	}
+	return output, nil
+}
+
+func (e *execResource) populateOutput(rCompliance *agentendpointpb.OSPolicyResourceCompliance) {
+	if e.enforceOutput != nil {
+		rCompliance.Output = &agentendpointpb.OSPolicyResourceCompliance_ExecResourceOutput_{
+			ExecResourceOutput: &agentendpointpb.OSPolicyResourceCompliance_ExecResourceOutput{
+				EnforcementOutput: e.enforceOutput,
+			},
+		}
 	}
 }
 

@@ -40,12 +40,11 @@ type fileResource struct {
 // ManagedFile is the file that this FileResouce manages.
 type ManagedFile struct {
 	Path       string
+	tempDir    string
+	source     string
+	checksum   string
 	State      agentendpointpb.OSPolicy_Resource_FileResource_DesiredState
 	Permisions os.FileMode
-
-	tempDir  string
-	source   string
-	checksum string
 }
 
 func parsePermissions(s string) (os.FileMode, error) {
@@ -75,16 +74,17 @@ func (f *fileResource) download(ctx context.Context) error {
 
 	tmpFile := filepath.Join(tmpDir, filepath.Base(f.GetPath()))
 	f.managedFile.source = tmpFile
+	perms := os.FileMode(0644)
 
 	switch f.GetSource().(type) {
 	case *agentendpointpb.OSPolicy_Resource_FileResource_Content:
-		f.managedFile.checksum, err = util.AtomicWriteFileStream(strings.NewReader(f.GetContent()), "", tmpFile, 0644)
+		f.managedFile.checksum, err = util.AtomicWriteFileStream(strings.NewReader(f.GetContent()), "", tmpFile, perms)
 		if err != nil {
 			return err
 		}
 
 	case *agentendpointpb.OSPolicy_Resource_FileResource_File:
-		f.managedFile.checksum, err = downloadFile(ctx, tmpFile, f.GetFile())
+		f.managedFile.checksum, err = downloadFile(ctx, tmpFile, perms, f.GetFile())
 		if err != nil {
 			return err
 		}
@@ -181,7 +181,7 @@ func copyFile(dst, src string, perms os.FileMode) (retErr error) {
 		return err
 	}
 
-	return writer.Chmod(perms)
+	return nil
 }
 
 func (f *fileResource) enforceState(ctx context.Context) (inDesiredState bool, err error) {
@@ -206,6 +206,8 @@ func (f *fileResource) enforceState(ctx context.Context) (inDesiredState bool, e
 
 	return true, nil
 }
+
+func (f *fileResource) populateOutput(rCompliance *agentendpointpb.OSPolicyResourceCompliance) {}
 
 func (f *fileResource) cleanup(ctx context.Context) error {
 	if f.managedFile.tempDir != "" {

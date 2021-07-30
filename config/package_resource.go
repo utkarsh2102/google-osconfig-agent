@@ -219,10 +219,9 @@ var (
 
 func populateInstalledCache(ctx context.Context, mp ManagedPackage) error {
 	var cache *packageCache
-	var refreshFunc func(context.Context) ([]packages.PkgInfo, error)
+	var refreshFunc func(context.Context) ([]*packages.PkgInfo, error)
 	var err error
 	switch {
-	// TODO: implement apt functions
 	case mp.Apt != nil:
 		cache = aptInstalled
 		refreshFunc = packages.InstalledDebPackages
@@ -278,6 +277,7 @@ func populateInstalledCache(ctx context.Context, mp ManagedPackage) error {
 // TODO: use a persistent cache for downloaded files so we dont need to redownload them each time
 func (p *packageResouce) download(ctx context.Context, name string, file *agentendpointpb.OSPolicy_Resource_File) (string, error) {
 	var path string
+	perms := os.FileMode(0644)
 	switch {
 	case file.GetLocalPath() != "":
 		path = file.GetLocalPath()
@@ -288,7 +288,7 @@ func (p *packageResouce) download(ctx context.Context, name string, file *agente
 		}
 		p.managedPackage.tempDir = tmpDir
 		path = filepath.Join(p.managedPackage.tempDir, name)
-		if _, err := downloadFile(ctx, path, file); err != nil {
+		if _, err := downloadFile(ctx, path, perms, file); err != nil {
 			return "", err
 		}
 	}
@@ -359,11 +359,11 @@ func (p *packageResouce) enforceState(ctx context.Context) (inDesiredState bool,
 		removing   = "removing"
 
 		enforcePackage struct {
+			actionFunc     func() error
+			installedCache *packageCache
 			name           string
 			action         string
 			packageType    string
-			actionFunc     func() error
-			installedCache *packageCache
 		}
 	)
 
@@ -374,7 +374,12 @@ func (p *packageResouce) enforceState(ctx context.Context) (inDesiredState bool,
 		enforcePackage.installedCache = aptInstalled
 		switch p.managedPackage.Apt.DesiredState {
 		case agentendpointpb.OSPolicy_Resource_PackageResource_INSTALLED:
-			enforcePackage.action, enforcePackage.actionFunc = installing, func() error { return packages.InstallAptPackages(ctx, []string{enforcePackage.name}) }
+			enforcePackage.action, enforcePackage.actionFunc = installing, func() error {
+				if _, err := packages.AptUpdate(ctx); err != nil {
+					return err
+				}
+				return packages.InstallAptPackages(ctx, []string{enforcePackage.name})
+			}
 		case agentendpointpb.OSPolicy_Resource_PackageResource_REMOVED:
 			enforcePackage.action, enforcePackage.actionFunc = removing, func() error { return packages.RemoveAptPackages(ctx, []string{enforcePackage.name}) }
 		}
@@ -405,6 +410,7 @@ func (p *packageResouce) enforceState(ctx context.Context) (inDesiredState bool,
 		enforcePackage.name = p.managedPackage.MSI.productName
 		enforcePackage.packageType = "msi"
 		enforcePackage.action = installing
+		enforcePackage.installedCache = &packageCache{} // No package cache for msi.
 		enforcePackage.actionFunc = func() error {
 			return packages.InstallMSIPackage(ctx, p.managedPackage.MSI.localPath, p.managedPackage.MSI.PackageResource.GetProperties())
 		}
@@ -459,6 +465,8 @@ func (p *packageResouce) enforceState(ctx context.Context) (inDesiredState bool,
 
 	return true, nil
 }
+
+func (p *packageResouce) populateOutput(rCompliance *agentendpointpb.OSPolicyResourceCompliance) {}
 
 func (p *packageResouce) cleanup(ctx context.Context) error {
 	if p.managedPackage.tempDir != "" {

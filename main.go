@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -73,9 +74,19 @@ func (s *serialPort) Write(b []byte) (int, error) {
 
 var deferredFuncs []func()
 
+func registerAgent(ctx context.Context) {
+	if agentconfig.TaskNotificationEnabled() || agentconfig.GuestPoliciesEnabled() {
+		if client, err := agentendpoint.NewClient(ctx); err != nil {
+			logger.Errorf(err.Error())
+		} else if err := client.RegisterAgent(ctx); err != nil {
+			logger.Errorf(err.Error())
+		}
+	}
+}
+
 func run(ctx context.Context) {
 	// Setup logging.
-	opts := logger.LogOpts{LoggerName: "OSConfigAgent"}
+	opts := logger.LogOpts{LoggerName: "OSConfigAgent", UserAgent: agentconfig.UserAgent()}
 	if agentconfig.Stdout() {
 		opts.Writers = []io.Writer{os.Stdout}
 	}
@@ -86,9 +97,10 @@ func run(ctx context.Context) {
 	// If this call to WatchConfig fails (like a metadata error) we can't continue.
 	if err := agentconfig.WatchConfig(ctx); err != nil {
 		logger.Init(ctx, opts)
-		logger.Fatalf(err.Error())
+		logger.Fatalf("Error parsing metadata, agent cannot start: %v", err.Error())
 	}
 	opts.Debug = agentconfig.Debug()
+	clog.DebugEnabled = agentconfig.Debug()
 	opts.ProjectName = agentconfig.ProjectID()
 
 	if err := logger.Init(ctx, opts); err != nil {
@@ -112,16 +124,11 @@ func run(ctx context.Context) {
 	clog.Infof(ctx, "OSConfig Agent (version %s) started.", agentconfig.Version())
 
 	// Call RegisterAgent on start then at least once every day.
+	registerAgent(ctx)
 	go func() {
-		for {
-			if agentconfig.TaskNotificationEnabled() || agentconfig.GuestPoliciesEnabled() {
-				if client, err := agentendpoint.NewClient(ctx); err != nil {
-					logger.Errorf(err.Error())
-				} else if err := client.RegisterAgent(ctx); err != nil {
-					logger.Errorf(err.Error())
-				}
-			}
-			time.Sleep(24 * time.Hour)
+		c := time.Tick(24 * time.Hour)
+		for range c {
+			registerAgent(ctx)
 		}
 	}()
 
@@ -160,6 +167,9 @@ func runTaskLoop(ctx context.Context, c chan struct{}) {
 	var taskNotificationClient *agentendpoint.Client
 	var err error
 	for {
+		// Set debug logging settings so that customers don't need to restart the agent.
+		logger.SetDebugLogging(agentconfig.Debug())
+		clog.DebugEnabled = agentconfig.Debug()
 		if agentconfig.TaskNotificationEnabled() && (taskNotificationClient == nil || taskNotificationClient.Closed()) {
 			// Start WaitForTaskNotification if we need to.
 			taskNotificationClient, err = agentendpoint.NewClient(ctx)
@@ -204,6 +214,9 @@ func runServiceLoop(ctx context.Context) {
 	// Runs functions that need to run on a set interval.
 	ticker := time.NewTicker(agentconfig.SvcPollInterval())
 	defer ticker.Stop()
+	// First inventory run will be somewhere between 3 and 5 min.
+	firstInventory := time.After(time.Duration(rand.Intn(120)+180) * time.Second)
+	ranFirstInventory := false
 	for {
 		if _, err := os.Stat(agentconfig.RestartFile()); err == nil {
 			clog.Infof(ctx, "Restart required marker file exists, beginning agent shutdown, waiting for tasks to complete.")
@@ -220,6 +233,19 @@ func runServiceLoop(ctx context.Context) {
 		}
 
 		if agentconfig.OSInventoryEnabled() {
+			if !ranFirstInventory {
+				// Only run first inventory after the set waiting period or if the main poll ticker ticks.
+				// The default SvcPollInterval is 10min so under normal circumstances firstInventory will
+				// always fire first.
+				select {
+				case <-ticker.C:
+				case <-firstInventory:
+				case <-ctx.Done():
+					return
+				}
+				ranFirstInventory = true
+			}
+
 			// This should always run after ospackage.SetConfig.
 			tasker.Enqueue(ctx, "Report OSInventory", func() {
 				client, err := agentendpoint.NewClient(ctx)

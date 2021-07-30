@@ -29,6 +29,7 @@ import (
 
 var (
 	yumInstallAgent = `
+sed -i 's/repo_gpgcheck=1/repo_gpgcheck=0/g' /etc/yum.repos.d/google-cloud.repo
 sleep 10
 systemctl stop google-osconfig-agent
 stop -q -n google-osconfig-agent  # required for EL6
@@ -45,6 +46,7 @@ start -q -n google-osconfig-agent  # required for EL6` + CurlPost
 	zypperInstallAgent = `
 sleep 10
 systemctl stop google-osconfig-agent
+zypper -n remove google-osconfig-agent
 while ! zypper -n -i --no-gpg-checks install google-osconfig-agent; do
 if [[ n -gt 2 ]]; then
   # Zypper repos are flaky, we retry 3 times then just continue, the agent may be installed fine.
@@ -56,13 +58,27 @@ sleep 5
 done
 systemctl start google-osconfig-agent` + CurlPost
 
+	// CosSetup sets up serial logging on COS.
+	CosSetup = `
+sleep 10
+sed -i 's/^#ForwardToConsole=no/ForwardToConsole=yes/' /etc/systemd/journald.conf
+sed -i 's/^#MaxLevelConsole=info/MaxLevelConsole=debug/' /etc/systemd/journald.conf
+MaxLevelConsole=debug
+systemctl force-reload systemd-journald
+systemctl restart google-osconfig-agent` + CurlPost
+
 	// CurlPost indicates agent is installed.
 	CurlPost = `
+uri=http://metadata.google.internal/computeMetadata/v1/instance/guest-attributes/guestInventory/LastUpdated
+curl -X DELETE $uri -H "Metadata-Flavor: Google"
+
 uri=http://metadata.google.internal/computeMetadata/v1/instance/guest-attributes/osconfig_tests/install_done
 curl -X PUT --data "1" $uri -H "Metadata-Flavor: Google"
 `
 
 	windowsPost = `
+$uri = 'http://metadata.google.internal/computeMetadata/v1/instance/guest-attributes/guestInventory/LastUpdated'
+Invoke-RestMethod -Method DELETE -Uri $uri -Headers @{"Metadata-Flavor" = "Google"}
 Start-Sleep 10
 $uri = 'http://metadata.google.internal/computeMetadata/v1/instance/guest-attributes/osconfig_tests/install_done'
 Invoke-RestMethod -Method PUT -Uri $uri -Headers @{"Metadata-Flavor" = "Google"} -Body 1
@@ -75,7 +91,6 @@ name=Google OSConfig Agent Repository
 baseurl=https://packages.cloud.google.com/yum/repos/google-osconfig-agent-%s-%s
 enabled=1
 gpgcheck=%d
-repo_gpgcheck=1
 gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
 	   https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 EOM`
@@ -87,7 +102,6 @@ name=Google OSConfig Agent Repository
 baseurl=https://packages.cloud.google.com/yum/repos/google-osconfig-agent-%s-%s
 enabled=1
 gpgcheck=%d
-repo_gpgcheck=1
 gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
 	   https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 EOM`
@@ -114,10 +128,12 @@ func InstallOSConfigGooGet() string {
 		return windowsPost
 	}
 	if config.AgentRepo() == "stable" {
-		return `c:\programdata\googet\googet.exe -noconfirm remove google-osconfig-agent
+		return `
+c:\programdata\googet\googet.exe -noconfirm remove google-osconfig-agent
 c:\programdata\googet\googet.exe -noconfirm install google-osconfig-agent` + windowsPost
 	}
-	return fmt.Sprintf(`c:\programdata\googet\googet.exe -noconfirm remove google-osconfig-agent
+	return fmt.Sprintf(`
+c:\programdata\googet\googet.exe -noconfirm remove google-osconfig-agent
 c:\programdata\googet\googet.exe -noconfirm install -sources https://packages.cloud.google.com/yuck/repos/google-osconfig-agent-%s google-osconfig-agent
 `+windowsPost, config.AgentRepo())
 }
@@ -185,6 +201,11 @@ var HeadAptImages = map[string]string{
 	"ubuntu-os-cloud/ubuntu-1604-lts": "projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts",
 	"ubuntu-os-cloud/ubuntu-1804-lts": "projects/ubuntu-os-cloud/global/images/family/ubuntu-1804-lts",
 	"ubuntu-os-cloud/ubuntu-2004-lts": "projects/ubuntu-os-cloud/global/images/family/ubuntu-2004-lts",
+
+	// Proposed Ubuntu images.
+	"ubuntu-os-cloud-image-proposed/ubuntu-1604-lts": "projects/ubuntu-os-cloud-image-proposed/global/images/family/ubuntu-1604-lts",
+	"ubuntu-os-cloud-image-proposed/ubuntu-1804-lts": "projects/ubuntu-os-cloud-image-proposed/global/images/family/ubuntu-1804-lts",
+	"ubuntu-os-cloud-image-proposed/ubuntu-2004-lts": "projects/ubuntu-os-cloud-image-proposed/global/images/family/ubuntu-2004-lts",
 }
 
 // OldAptImages is a map of names to image paths for old images that use APT.
@@ -254,9 +275,6 @@ var OldEL8Images = map[string]string{
 // HeadELImages is a map of names to image paths for public EL image families.
 var HeadELImages = func() (newMap map[string]string) {
 	newMap = make(map[string]string)
-	for k, v := range HeadEL6Images {
-		newMap[k] = v
-	}
 	for k, v := range HeadEL7Images {
 		newMap[k] = v
 	}
@@ -274,18 +292,18 @@ var HeadWindowsImages = map[string]string{
 	"windows-cloud/windows-2016-core":    "projects/windows-cloud/global/images/family/windows-2016-core",
 	"windows-cloud/windows-2019":         "projects/windows-cloud/global/images/family/windows-2019",
 	"windows-cloud/windows-2019-core":    "projects/windows-cloud/global/images/family/windows-2019-core",
-	"windows-cloud/windows-1909-core":    "projects/windows-cloud/global/images/family/windows-1909-core",
 	"windows-cloud/windows-2004-core":    "projects/windows-cloud/global/images/family/windows-2004-core",
+	"windows-cloud/windows-20h2-core":    "projects/windows-cloud/global/images/family/windows-20h2-core",
 }
 
 // OldWindowsImages is a map of names to image paths for old Windows images.
 var OldWindowsImages = map[string]string{
-	"old/windows-2012-r2":      "projects/windows-cloud/global/images/windows-server-2012-r2-dc-v20191008",
-	"old/windows-2012-r2-core": "projects/windows-cloud/global/images/windows-server-2012-r2-dc-core-v20191008",
-	"old/windows-2016":         "projects/windows-cloud/global/images/windows-server-2016-dc-v20191008",
-	"old/windows-2016-core":    "projects/windows-cloud/global/images/windows-server-2016-dc-core-v20191008",
-	"old/windows-2019":         "projects/windows-cloud/global/images/windows-server-2019-dc-v20191008",
-	"old/windows-2019-core":    "projects/windows-cloud/global/images/windows-server-2019-dc-core-v20191008",
+	"old/windows-2012-r2":      "projects/windows-cloud/global/images/windows-server-2012-r2-dc-v20210309",
+	"old/windows-2012-r2-core": "projects/windows-cloud/global/images/windows-server-2012-r2-dc-core-v20210309",
+	"old/windows-2016":         "projects/windows-cloud/global/images/windows-server-2016-dc-v20210309",
+	"old/windows-2016-core":    "projects/windows-cloud/global/images/windows-server-2016-dc-core-v20210309",
+	"old/windows-2019":         "projects/windows-cloud/global/images/windows-server-2019-dc-v20210309",
+	"old/windows-2019-core":    "projects/windows-cloud/global/images/windows-server-2019-dc-core-v20210309",
 }
 
 // HeadCOSImages is a map of names to image paths for public COS image families.
@@ -359,7 +377,7 @@ func CreateComputeInstance(metadataitems []*api.MetadataItems, client daisyCompu
 				Boot:       true,
 				InitializeParams: &api.AttachedDiskInitializeParams{
 					SourceImage: image,
-					DiskType:    fmt.Sprintf("projects/%s/zones/%s/diskTypes/pd-ssd", projectID, zone),
+					DiskType:    fmt.Sprintf("projects/%s/zones/%s/diskTypes/pd-balanced", projectID, zone),
 				},
 			},
 		},
