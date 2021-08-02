@@ -1,3 +1,13 @@
+google-osconfig-agent (20210608.1-0ubuntu1) impish; urgency=medium
+
+  * New upstream version 20210608.1. (LP: #1938553)
+  * d/extra/vendor:
+    - Update vendored guest-logging-go/logger.
+    - Update vendored agentendpoint/v1.
+    - Update vendored cos/tools.git/src/pkg/cos.
+
+ -- Utkarsh Gupta <utkarsh.gupta@canonical.com>  Fri, 30 Jul 2021 18:35:05 +0530
+
 google-osconfig-agent (20210219.00-0ubuntu1) hirsute; urgency=medium
 
   * New upstream release
