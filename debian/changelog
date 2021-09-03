@@ -1,3 +1,9 @@
+google-osconfig-agent (20210608.1-0ubuntu1~21.04.0) hirsute; urgency=medium
+
+  * No-change rebuild for Hirsute. (LP: #1938553)
+
+ -- Utkarsh Gupta <utkarsh.gupta@canonical.com>  Fri, 03 Sep 2021 13:57:39 +0530
+
 google-osconfig-agent (20210608.1-0ubuntu1) impish; urgency=medium
 
   * New upstream version 20210608.1. (LP: #1938553)
