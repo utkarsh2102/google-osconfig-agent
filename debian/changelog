@@ -1,3 +1,9 @@
+google-osconfig-agent (20210608.1-0ubuntu1~20.04.0) focal; urgency=medium
+
+  * No-change rebuild for Focal. (LP: #1938553)
+
+ -- Utkarsh Gupta <utkarsh.gupta@canonical.com>  Fri, 03 Sep 2021 14:04:44 +0530
+
 google-osconfig-agent (20210608.1-0ubuntu1) impish; urgency=medium
 
   * New upstream version 20210608.1. (LP: #1938553)
