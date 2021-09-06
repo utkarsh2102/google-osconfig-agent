@@ -2,6 +2,7 @@ google-osconfig-agent (20210608.1-0ubuntu1~18.04.0) bionic; urgency=medium
 
   * Rebuild for Bionic. (LP: #1938553)
     - Lower dh-compat to 11.
+    - Use golang-1.13-go instead of golang-any.
 
  -- Utkarsh Gupta <utkarsh.gupta@canonical.com>  Fri, 03 Sep 2021 14:11:10 +0530
 
