@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -66,21 +67,27 @@ const (
 	taskNotificationEnabledDefault = false
 	debugEnabledDefault            = false
 
-	configDirWindows     = `C:\Program Files\Google\OSConfig`
-	configDirLinux       = "/etc/osconfig"
-	taskStateFileWindows = configDirWindows + `\osconfig_task.state`
-	taskStateFileLinux   = configDirLinux + "/osconfig_task.state"
-	restartFileWindows   = configDirWindows + `\osconfig_agent_restart_required`
-	restartFileLinux     = configDirLinux + "/osconfig_agent_restart_required"
+	oldConfigDirLinux = "/etc/osconfig"
+	cacheDirWindows   = `C:\Program Files\Google\OSConfig`
+	cacheDirLinux     = "/var/lib/google_osconfig_agent"
+
+	taskStateFileWindows  = cacheDirWindows + `\osconfig_task.state`
+	taskStateFileLinux    = cacheDirLinux + "/osconfig_task.state"
+	oldTaskStateFileLinux = oldConfigDirLinux + "/osconfig_task.state"
+
+	restartFileWindows  = cacheDirWindows + `\osconfig_agent_restart_required`
+	restartFileLinux    = cacheDirLinux + "/osconfig_agent_restart_required"
+	oldRestartFileLinux = oldConfigDirLinux + "/osconfig_agent_restart_required"
 
 	osConfigPollIntervalDefault = 10
 	osConfigMetadataPollTimeout = 60
 )
 
 var (
-	endpoint = flag.String("endpoint", prodEndpoint, "osconfig endpoint override")
-	debug    = flag.Bool("debug", false, "set debug log verbosity")
-	stdout   = flag.Bool("stdout", false, "log to stdout")
+	endpoint            = flag.String("endpoint", prodEndpoint, "osconfig endpoint override")
+	debug               = flag.Bool("debug", false, "set debug log verbosity")
+	stdout              = flag.Bool("stdout", false, "log to stdout")
+	disableLocalLogging = flag.Bool("disable_local_logging", false, "disable logging using event log or syslog")
 
 	agentConfig   = &config{}
 	agentConfigMx sync.RWMutex
@@ -504,6 +511,11 @@ func Stdout() bool {
 	return *stdout
 }
 
+// DisableLocalLogging flag.
+func DisableLocalLogging() bool {
+	return *disableLocalLogging
+}
+
 // SvcEndpoint is the OS Config service endpoint.
 func SvcEndpoint() string {
 	return getAgentConfig().svcEndpoint
@@ -512,6 +524,11 @@ func SvcEndpoint() string {
 // ZypperRepoDir is the location of the zypper repo files.
 func ZypperRepoDir() string {
 	return zypperRepoDir
+}
+
+// ZypperRepoFormat is the format of the zypper repo files.
+func ZypperRepoFormat() string {
+	return filepath.Join(zypperRepoDir, "osconfig_managed_%s.repo")
 }
 
 // ZypperRepoFilePath is the location where the zypper repo file will be created.
@@ -524,6 +541,11 @@ func YumRepoDir() string {
 	return yumRepoDir
 }
 
+// YumRepoFormat is the format of the yum repo files.
+func YumRepoFormat() string {
+	return filepath.Join(yumRepoDir, "osconfig_managed_%s.repo")
+}
+
 // YumRepoFilePath is the location where the yum repo file will be created.
 func YumRepoFilePath() string {
 	return getAgentConfig().yumRepoFilePath
@@ -534,6 +556,11 @@ func AptRepoDir() string {
 	return aptRepoDir
 }
 
+// AptRepoFormat is the format of the apt repo files.
+func AptRepoFormat() string {
+	return filepath.Join(aptRepoDir, "osconfig_managed_%s.list")
+}
+
 // AptRepoFilePath is the location where the apt repo file will be created.
 func AptRepoFilePath() string {
 	return getAgentConfig().aptRepoFilePath
@@ -542,6 +569,11 @@ func AptRepoFilePath() string {
 // GooGetRepoDir is the location of the googet repo files.
 func GooGetRepoDir() string {
 	return googetRepoDir
+}
+
+// GooGetRepoFormat is the format of the googet repo files.
+func GooGetRepoFormat() string {
+	return filepath.Join(googetRepoDir, "osconfig_managed_%s.repo")
 }
 
 // GooGetRepoFilePath is the location where the googet repo file will be created.
@@ -660,6 +692,11 @@ func TaskStateFile() string {
 	return taskStateFileLinux
 }
 
+// OldTaskStateFile is the location of the task state file.
+func OldTaskStateFile() string {
+	return oldTaskStateFileLinux
+}
+
 // RestartFile is the location of the restart required file.
 func RestartFile() string {
 	if runtime.GOOS == "windows" {
@@ -667,6 +704,20 @@ func RestartFile() string {
 	}
 
 	return restartFileLinux
+}
+
+// OldRestartFile is the location of the restart required file.
+func OldRestartFile() string {
+	return oldRestartFileLinux
+}
+
+// CacheDir is the location of the cache directory.
+func CacheDir() string {
+	if runtime.GOOS == "windows" {
+		return cacheDirWindows
+	}
+
+	return cacheDirLinux
 }
 
 // UserAgent for creating http/grpc clients.

@@ -24,7 +24,7 @@ import (
 
 type aptGetUpgradeOpts struct {
 	exclusivePackages []string
-	excludes          []string
+	excludes          []*Exclude
 	upgradeType       packages.AptUpgradeType
 	dryrun            bool
 }
@@ -40,7 +40,7 @@ func AptGetUpgradeType(upgradeType packages.AptUpgradeType) AptGetUpgradeOption 
 }
 
 // AptGetExcludes excludes these packages from upgrade.
-func AptGetExcludes(excludes []string) AptGetUpgradeOption {
+func AptGetExcludes(excludes []*Exclude) AptGetUpgradeOption {
 	return func(args *aptGetUpgradeOpts) {
 		args.excludes = excludes
 	}
@@ -92,12 +92,23 @@ func RunAptGetUpgrade(ctx context.Context, opts ...AptGetUpgradeOption) error {
 		pkgNames = append(pkgNames, pkg.Name)
 	}
 
-	msg := fmt.Sprintf("%d packages: %v", len(pkgNames), fPkgs)
+	msg := fmt.Sprintf("%d packages: %q", len(pkgNames), fPkgs)
 	if aptOpts.dryrun {
 		clog.Infof(ctx, "Running in dryrun mode, not updating %s", msg)
 		return nil
 	}
-	clog.Infof(ctx, "Updating %s", msg)
 
-	return packages.InstallAptPackages(ctx, pkgNames)
+	ops := opsToReport{
+		packages: fPkgs,
+	}
+	logOps(ctx, ops)
+
+	err = packages.InstallAptPackages(ctx, pkgNames)
+	if err == nil {
+		logSuccess(ctx, ops)
+	} else {
+		logFailure(ctx, ops, err)
+	}
+
+	return err
 }
