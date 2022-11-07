@@ -43,7 +43,6 @@ func init() {
 }
 
 type yumUpdateOpts struct {
-	excludes []string
 	security bool
 	minimal  bool
 }
@@ -64,14 +63,6 @@ func YumUpdateSecurity(security bool) YumUpdateOption {
 func YumUpdateMinimal(minimal bool) YumUpdateOption {
 	return func(args *yumUpdateOpts) {
 		args.minimal = minimal
-	}
-}
-
-// YumExcludes returns a YumUpdateOption that specifies the excludes
-// command should be used.
-func YumExcludes(excludes []string) YumUpdateOption {
-	return func(args *yumUpdateOpts) {
-		args.excludes = excludes
 	}
 }
 
@@ -144,7 +135,7 @@ func parseYumUpdates(data []byte) []*PkgInfo {
 func YumUpdates(ctx context.Context, opts ...YumUpdateOption) ([]*PkgInfo, error) {
 	// We just use check-update to ensure all repo keys are synced as we run
 	// update with --assumeno.
-	stdout, stderr, err := runner.Run(ctx, exec.Command(yum, yumCheckUpdateArgs...))
+	stdout, stderr, err := runner.Run(ctx, exec.CommandContext(ctx, yum, yumCheckUpdateArgs...))
 	// Exit code 0 means no updates, 100 means there are updates.
 	if err == nil {
 		return nil, nil
@@ -167,7 +158,6 @@ func listAndParseYumPackages(ctx context.Context, opts ...YumUpdateOption) ([]*P
 	yumOpts := &yumUpdateOpts{
 		security: false,
 		minimal:  false,
-		excludes: []string{},
 	}
 
 	for _, opt := range opts {
@@ -181,13 +171,8 @@ func listAndParseYumPackages(ctx context.Context, opts ...YumUpdateOption) ([]*P
 	if yumOpts.security {
 		args = append(args, "--security")
 	}
-	if len(yumOpts.excludes) > 0 {
-		for _, pkg := range yumOpts.excludes {
-			args = append(args, []string{"--exclude", pkg}...)
-		}
-	}
 
-	stdout, stderr, err := ptyrunner.Run(ctx, exec.Command(yum, args...))
+	stdout, stderr, err := ptyrunner.Run(ctx, exec.CommandContext(ctx, yum, args...))
 	if err != nil {
 		return nil, fmt.Errorf("error running %s with args %q: %v, stdout: %q, stderr: %q", yum, args, err, stdout, stderr)
 	}
