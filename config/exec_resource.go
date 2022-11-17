@@ -155,7 +155,7 @@ func (e *execResource) run(ctx context.Context, name string, execR *agentendpoin
 	}
 	args = append(args, execR.GetArgs()...)
 
-	stdout, stderr, err := runner.Run(ctx, exec.Command(cmd, args...))
+	stdout, stderr, err := runner.Run(ctx, exec.CommandContext(ctx, cmd, args...))
 	code := 0
 	if err != nil {
 		code = -1
@@ -186,6 +186,7 @@ func (e *execResource) checkState(ctx context.Context) (inDesiredState bool, err
 }
 
 func (e *execResource) enforceState(ctx context.Context) (inDesiredState bool, err error) {
+	clog.Infof(ctx, `Running "Enforce" for ExecResource.`)
 	// For enforce we expect an exit code of 100 for "success" and anything positive code is a failure".
 	// 100 was chosen over 0 because we want an explicit indicator of "sucess" vs errors.
 	// Also Powershell will always exit 0 unless "exit" is explicitly called.
