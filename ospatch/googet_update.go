@@ -24,7 +24,7 @@ import (
 
 type googetUpdateOpts struct {
 	exclusivePackages []string
-	excludes          []string
+	excludes          []*Exclude
 	dryrun            bool
 }
 
@@ -32,7 +32,7 @@ type googetUpdateOpts struct {
 type GooGetUpdateOption func(*googetUpdateOpts)
 
 // GooGetExcludes excludes these packages from upgrade.
-func GooGetExcludes(excludes []string) GooGetUpdateOption {
+func GooGetExcludes(excludes []*Exclude) GooGetUpdateOption {
 	return func(args *googetUpdateOpts) {
 		args.excludes = excludes
 	}
@@ -79,12 +79,21 @@ func RunGooGetUpdate(ctx context.Context, opts ...GooGetUpdateOption) error {
 		pkgNames = append(pkgNames, pkg.Name)
 	}
 
-	msg := fmt.Sprintf("%d packages: %v", len(pkgNames), fPkgs)
+	msg := fmt.Sprintf("%d packages: %q", len(pkgNames), fPkgs)
 	if googetOpts.dryrun {
 		clog.Infof(ctx, "Running in dryrun mode, not updating %s", msg)
 		return nil
 	}
-	clog.Infof(ctx, "Updating %s", msg)
+	ops := opsToReport{
+		packages: fPkgs,
+	}
+	logOps(ctx, ops)
 
-	return packages.InstallGooGetPackages(ctx, pkgNames)
+	err = packages.InstallGooGetPackages(ctx, pkgNames)
+	if err == nil {
+		logSuccess(ctx, ops)
+	} else {
+		logFailure(ctx, ops, err)
+	}
+	return err
 }

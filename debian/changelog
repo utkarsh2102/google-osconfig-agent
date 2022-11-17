@@ -1,3 +1,13 @@
+google-osconfig-agent (20220824.00-0ubuntu1) lunar; urgency=medium
+
+  * New upstream version 20220824.00. (LP: #1996735)
+  * Update vendored google.golang.org/genproto.
+  * Override deb build settings for 1.16+ compatibility.
+  * Deprecate old config directory in favor of new cache directory.
+  * Install var/lib/google_osconfig_agent directory.
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Thu, 10 Nov 2022 17:13:49 +0530
+
 google-osconfig-agent (20210608.1-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * d/rules: Set GO111MODULE to "off" to avoid

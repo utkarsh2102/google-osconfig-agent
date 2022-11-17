@@ -62,23 +62,28 @@ var (
 
 // Packages is a selection of packages based on their manager.
 type Packages struct {
-	Yum           []*PkgInfo     `json:"yum,omitempty"`
-	Rpm           []*PkgInfo     `json:"rpm,omitempty"`
-	Apt           []*PkgInfo     `json:"apt,omitempty"`
-	Deb           []*PkgInfo     `json:"deb,omitempty"`
-	Zypper        []*PkgInfo     `json:"zypper,omitempty"`
-	ZypperPatches []*ZypperPatch `json:"zypperPatches,omitempty"`
-	COS           []*PkgInfo     `json:"cos,omitempty"`
-	Gem           []*PkgInfo     `json:"gem,omitempty"`
-	Pip           []*PkgInfo     `json:"pip,omitempty"`
-	GooGet        []*PkgInfo     `json:"googet,omitempty"`
-	WUA           []*WUAPackage  `json:"wua,omitempty"`
-	QFE           []*QFEPackage  `json:"qfe,omitempty"`
+	Yum                []*PkgInfo            `json:"yum,omitempty"`
+	Rpm                []*PkgInfo            `json:"rpm,omitempty"`
+	Apt                []*PkgInfo            `json:"apt,omitempty"`
+	Deb                []*PkgInfo            `json:"deb,omitempty"`
+	Zypper             []*PkgInfo            `json:"zypper,omitempty"`
+	ZypperPatches      []*ZypperPatch        `json:"zypperPatches,omitempty"`
+	COS                []*PkgInfo            `json:"cos,omitempty"`
+	Gem                []*PkgInfo            `json:"gem,omitempty"`
+	Pip                []*PkgInfo            `json:"pip,omitempty"`
+	GooGet             []*PkgInfo            `json:"googet,omitempty"`
+	WUA                []*WUAPackage         `json:"wua,omitempty"`
+	QFE                []*QFEPackage         `json:"qfe,omitempty"`
+	WindowsApplication []*WindowsApplication `json:"-"`
 }
 
 // PkgInfo describes a package.
 type PkgInfo struct {
 	Name, Arch, Version string
+}
+
+func (i *PkgInfo) String() string {
+	return fmt.Sprintf("%s %s %s", i.Name, i.Arch, i.Version)
 }
 
 // ZypperPatch describes a Zypper patch.
@@ -105,12 +110,27 @@ type QFEPackage struct {
 	Caption, Description, HotFixID, InstalledOn string
 }
 
+// WindowsApplication describes a Windows Application.
+type WindowsApplication struct {
+	DisplayName    string
+	DisplayVersion string
+	InstallDate    time.Time
+	Publisher      string
+	HelpLink       string
+}
+
 func run(ctx context.Context, cmd string, args []string) ([]byte, error) {
-	stdout, stderr, err := runner.Run(ctx, exec.Command(cmd, args...))
+	stdout, stderr, err := runner.Run(ctx, exec.CommandContext(ctx, cmd, args...))
 	if err != nil {
 		return nil, fmt.Errorf("error running %s with args %q: %v, stdout: %q, stderr: %q", cmd, args, err, stdout, stderr)
 	}
 	return stdout, nil
+}
+
+func runWithDeadline(ctx context.Context, timeout time.Duration, cmd string, args []string) ([]byte, error) {
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	return run(ctxWithTimeout, cmd, args)
 }
 
 type ptyRunner struct{}
