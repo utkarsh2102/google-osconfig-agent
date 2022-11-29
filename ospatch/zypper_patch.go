@@ -31,7 +31,7 @@ var (
 type zypperPatchOpts struct {
 	categories       []string
 	severities       []string
-	excludes         []string
+	excludes         []*Exclude
 	exclusivePatches []string
 	withOptional     bool
 	withUpdate       bool
@@ -75,7 +75,7 @@ func ZypperUpdateWithUpdate(withUpdate bool) ZypperPatchOption {
 
 // ZypperUpdateWithExcludes returns a ZypperUpdateOption that specifies
 // list of packages to be excluded from update
-func ZypperUpdateWithExcludes(excludes []string) ZypperPatchOption {
+func ZypperUpdateWithExcludes(excludes []*Exclude) ZypperPatchOption {
 	return func(args *zypperPatchOpts) {
 		args.excludes = excludes
 	}
@@ -130,11 +130,11 @@ func RunZypperPatch(ctx context.Context, opts ...ZypperPatchOption) error {
 	if zOpts.withUpdate {
 		pkgUpdates, err = packages.ZypperUpdates(ctx)
 		if err != nil {
-			return nil
+			return err
 		}
 		pkgToPatchesMap, err = packages.ZypperPackagesInPatch(ctx, patches)
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 
@@ -145,36 +145,44 @@ func RunZypperPatch(ctx context.Context, opts ...ZypperPatchOption) error {
 		return nil
 	}
 
+	var ops opsToReport
+
 	if len(fPatches) == 0 {
 		clog.Infof(ctx, "No patches to install.")
 	} else {
-		msg := fmt.Sprintf("%d patches: %v", len(fPatches), fPatches)
+		msg := fmt.Sprintf("%d patches: %s", len(fPatches), formatPatches(fPatches))
 		if zOpts.dryrun {
 			clog.Infof(ctx, "Running in dryrun mode, not installing %s", msg)
 		} else {
-			clog.Infof(ctx, "Installing %s", msg)
+			ops.patches = fPatches
 		}
 	}
 
 	if len(fpkgs) == 0 {
 		clog.Infof(ctx, "No non-patch packages to update.")
 	} else {
-		msg := fmt.Sprintf("%d patches: %v", len(fpkgs), fpkgs)
+		msg := fmt.Sprintf("%d patches: %q", len(fpkgs), fpkgs)
 		if zOpts.dryrun {
 			clog.Infof(ctx, "Running in dryrun mode, not Updating %s", msg)
 		} else {
-			clog.Infof(ctx, "Updating %s", msg)
+			ops.packages = fpkgs
 		}
 	}
+	logOps(ctx, ops)
 
 	if zOpts.dryrun {
 		return nil
 	}
-
-	return packages.ZypperInstall(ctx, fPatches, fpkgs)
+	err = packages.ZypperInstall(ctx, fPatches, fpkgs)
+	if err == nil {
+		logSuccess(ctx, ops)
+	} else {
+		logFailure(ctx, ops, err)
+	}
+	return err
 }
 
-func runFilter(patches []*packages.ZypperPatch, exclusivePatches, excludes []string, pkgUpdates []*packages.PkgInfo, pkgToPatchesMap map[string][]string, withUpdate bool) ([]*packages.ZypperPatch, []*packages.PkgInfo, error) {
+func runFilter(patches []*packages.ZypperPatch, exclusivePatches []string, excludes []*Exclude, pkgUpdates []*packages.PkgInfo, pkgToPatchesMap map[string][]string, withUpdate bool) ([]*packages.ZypperPatch, []*packages.PkgInfo, error) {
 	// exclusive patches
 	var fPatches []*packages.ZypperPatch
 	var fPkgs []*packages.PkgInfo
@@ -201,7 +209,8 @@ func runFilter(patches []*packages.ZypperPatch, exclusivePatches, excludes []str
 	// as per the configurations provided by user;
 	// we remove the excluded patches from the list
 	for _, patch := range patches {
-		if !containsString(excludes, patch.Name) {
+		// in zypper we're filtering patches instead of packages, but the method is still the same
+		if !shouldPackageBeExcluded(excludes, &patch.Name) {
 			fPatches = append(fPatches, patch)
 		}
 	}

@@ -31,7 +31,7 @@ var (
 
 type yumUpdateOpts struct {
 	exclusivePackages []string
-	excludes          []string
+	excludes          []*Exclude
 	security          bool
 	minimal           bool
 	dryrun            bool
@@ -58,7 +58,7 @@ func YumUpdateMinimal(minimal bool) YumUpdateOption {
 
 // YumUpdateExcludes returns a YumUpdateOption that specifies what packages to add to
 // the --exclude flag.
-func YumUpdateExcludes(excludes []string) YumUpdateOption {
+func YumUpdateExcludes(excludes []*Exclude) YumUpdateOption {
 	return func(args *yumUpdateOpts) {
 		args.excludes = excludes
 	}
@@ -90,14 +90,14 @@ func RunYumUpdate(ctx context.Context, opts ...YumUpdateOption) error {
 		opt(yumOpts)
 	}
 
-	pkgs, err := packages.YumUpdates(ctx, packages.YumUpdateMinimal(yumOpts.minimal), packages.YumUpdateSecurity(yumOpts.security), packages.YumExcludes(yumOpts.excludes))
+	pkgs, err := packages.YumUpdates(ctx, packages.YumUpdateMinimal(yumOpts.minimal), packages.YumUpdateSecurity(yumOpts.security))
 	if err != nil {
 		return err
 	}
 
 	// Yum excludes are already excluded while listing yumUpdates, so we send
 	// and empty list.
-	fPkgs, err := filterPackages(pkgs, yumOpts.exclusivePackages, []string{})
+	fPkgs, err := filterPackages(pkgs, yumOpts.exclusivePackages, yumOpts.excludes)
 	if err != nil {
 		return err
 	}
@@ -111,12 +111,22 @@ func RunYumUpdate(ctx context.Context, opts ...YumUpdateOption) error {
 		pkgNames = append(pkgNames, pkg.Name)
 	}
 
-	msg := fmt.Sprintf("%d packages: %v", len(pkgNames), fPkgs)
+	msg := fmt.Sprintf("%d packages: %q", len(pkgNames), fPkgs)
 	if yumOpts.dryrun {
 		clog.Infof(ctx, "Running in dryrun mode, not updating %s", msg)
 		return nil
 	}
-	clog.Infof(ctx, "Updating %s", msg)
+	ops := opsToReport{
+		packages: fPkgs,
+	}
 
-	return packages.InstallYumPackages(ctx, pkgNames)
+	logOps(ctx, ops)
+
+	err = packages.InstallYumPackages(ctx, pkgNames)
+	if err == nil {
+		logSuccess(ctx, ops)
+	} else {
+		logFailure(ctx, ops, err)
+	}
+	return err
 }

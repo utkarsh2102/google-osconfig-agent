@@ -103,7 +103,7 @@ func ZypperInstall(ctx context.Context, patches []*ZypperPatch, pkgs []*PkgInfo)
 		args = append(args, "package:"+pkg.Name)
 	}
 
-	stdout, stderr, err := runner.Run(ctx, exec.Command(zypper, args...))
+	stdout, stderr, err := runner.Run(ctx, exec.CommandContext(ctx, zypper, args...))
 	// https://en.opensuse.org/SDB:Zypper_manual#EXIT_CODES
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -348,13 +348,13 @@ func parseZypperPatchInfo(out []byte) (map[string][]string, error) {
 			//python-solv.x86_64 < 0.6.36-2.27.19.8
 			//zypper.src < 1.13.54-18.40.2
 			//zypper.x86_64 < 1.13.54-18.40.2
-			//zypper-log.noarch < 1.13.54-18.40.2
+			//zypper-log < 1.13.54-18.40.2
 			parts := strings.Split(string(lines[ctr]), "<")
 			if len(parts) != 2 {
 				return nil, fmt.Errorf("invalid package info")
 			}
 			nameArch := strings.Split(parts[0], ".")
-			if len(nameArch) != 2 {
+			if len(nameArch) < 1 || len(nameArch) > 2 {
 				return nil, fmt.Errorf("invalid package info")
 			}
 
@@ -381,6 +381,9 @@ func parseZypperPatchInfo(out []byte) (map[string][]string, error) {
 
 // ZypperPackagesInPatch returns the list of patches, a package upgrade belongs to
 func ZypperPackagesInPatch(ctx context.Context, patches []*ZypperPatch) (map[string][]string, error) {
+	if len(patches) == 0 {
+		return make(map[string][]string), nil
+	}
 	var patchNames []string
 	for _, patch := range patches {
 		patchNames = append(patchNames, patch.Name)
