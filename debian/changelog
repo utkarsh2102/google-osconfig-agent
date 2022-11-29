@@ -1,3 +1,11 @@
+google-osconfig-agent (20210608.1-0ubuntu1~16.04.0) xenial; urgency=medium
+
+  * No-change rebuild for Xenial
+    - Downgrade debhelper to 9.
+    - Set GO111MODULE to off to avoid downloading from the internet.
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Tue, 20 Sep 2022 17:39:04 +0530
+
 google-osconfig-agent (20210608.1-0ubuntu1~18.04.0) bionic; urgency=medium
 
   * Rebuild for Bionic. (LP: #1938553)
