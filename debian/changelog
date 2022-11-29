@@ -1,3 +1,9 @@
+google-osconfig-agent (20220824.00-0ubuntu1~16.04.1) xenial; urgency=medium
+
+  * No-change rebuild for Xenial.
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Tue, 29 Nov 2022 19:35:03 +0530
+
 google-osconfig-agent (20220824.00-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * No-change rebuild for Bionic. (LP: #1996735)
