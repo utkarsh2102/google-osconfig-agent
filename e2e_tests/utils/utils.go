@@ -18,6 +18,8 @@ package utils
 import (
 	"fmt"
 	"math/rand"
+	"path"
+	"strings"
 	"time"
 
 	daisyCompute "github.com/GoogleCloudPlatform/compute-image-tools/daisy/compute"
@@ -191,19 +193,36 @@ func InstallOSConfigEL6() string {
 	return fmt.Sprintf(yumRepoSetup+yumInstallAgent, "el6", config.AgentRepo(), 0)
 }
 
+// InstallOSConfigEL installs the osconfig agent on el based systems.
+func InstallOSConfigEL(image string) string {
+	switch {
+	case strings.Contains(path.Base(image), "8"):
+		return InstallOSConfigEL8()
+	case strings.Contains(path.Base(image), "7"):
+		return InstallOSConfigEL7()
+	case strings.Contains(path.Base(image), "6"):
+		return InstallOSConfigEL6()
+	}
+	return ""
+}
+
+// DowngradeAptImages is a single image that are used for testing downgrade case with apt-get
+var DowngradeAptImages = map[string]string{
+	"debian-cloud/debian-10": "projects/debian-cloud/global/images/family/debian-10",
+}
+
 // HeadAptImages is a map of names to image paths for public image families that use APT.
 var HeadAptImages = map[string]string{
 	// Debian images.
 	"debian-cloud/debian-9":  "projects/debian-cloud/global/images/family/debian-9",
 	"debian-cloud/debian-10": "projects/debian-cloud/global/images/family/debian-10",
+	"debian-cloud/debian-11": "projects/debian-cloud/global/images/family/debian-11",
 
 	// Ubuntu images.
-	"ubuntu-os-cloud/ubuntu-1604-lts": "projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts",
 	"ubuntu-os-cloud/ubuntu-1804-lts": "projects/ubuntu-os-cloud/global/images/family/ubuntu-1804-lts",
 	"ubuntu-os-cloud/ubuntu-2004-lts": "projects/ubuntu-os-cloud/global/images/family/ubuntu-2004-lts",
 
 	// Proposed Ubuntu images.
-	"ubuntu-os-cloud-image-proposed/ubuntu-1604-lts": "projects/ubuntu-os-cloud-image-proposed/global/images/family/ubuntu-1604-lts",
 	"ubuntu-os-cloud-image-proposed/ubuntu-1804-lts": "projects/ubuntu-os-cloud-image-proposed/global/images/family/ubuntu-1804-lts",
 	"ubuntu-os-cloud-image-proposed/ubuntu-2004-lts": "projects/ubuntu-os-cloud-image-proposed/global/images/family/ubuntu-2004-lts",
 }
@@ -211,13 +230,12 @@ var HeadAptImages = map[string]string{
 // OldAptImages is a map of names to image paths for old images that use APT.
 var OldAptImages = map[string]string{
 	// Debian images.
-	"old/debian-9":  "projects/debian-cloud/global/images/debian-9-stretch-v20191014",
-	"old/debian-10": "projects/debian-cloud/global/images/debian-10-buster-v20191014",
+	"old/debian-9":  "projects/debian-cloud/global/images/debian-9-stretch-v20210512",
+	"old/debian-10": "projects/debian-cloud/global/images/debian-10-buster-v20210512",
 
 	// Ubuntu images.
-	"old/ubuntu-1604-lts": "projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20191005",
-	"old/ubuntu-1804-lts": "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20191002",
-	"old/ubuntu-2004-lts": "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20200506",
+	"old/ubuntu-1804-lts": "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20210514",
+	"old/ubuntu-2004-lts": "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210510",
 }
 
 // HeadSUSEImages is a map of names to image paths for public SUSE images.
@@ -256,20 +274,20 @@ var HeadEL7Images = map[string]string{
 
 // OldEL7Images is a map of names to image paths for old EL7 images.
 var OldEL7Images = map[string]string{
-	"old/centos-7": "projects/centos-cloud/global/images/centos-7-v20191014",
-	"old/rhel-7":   "projects/rhel-cloud/global/images/rhel-7-v20191014",
+	"old/centos-7": "projects/centos-cloud/global/images/centos-7-v20210512",
+	"old/rhel-7":   "projects/rhel-cloud/global/images/rhel-7-v20210512",
 }
 
 // HeadEL8Images is a map of names to image paths for public EL8 image families.
 var HeadEL8Images = map[string]string{
-	"centos-cloud/centos-8": "projects/centos-cloud/global/images/family/centos-8",
-	"rhel-cloud/rhel-8":     "projects/rhel-cloud/global/images/family/rhel-8",
+	"centos-cloud/centos-stream-8":    "projects/centos-cloud/global/images/family/centos-stream-8",
+	"rhel-cloud/rhel-8":               "projects/rhel-cloud/global/images/family/rhel-8",
+	"rocky-linux-cloud/rocky-linux-8": "projects/rocky-linux-cloud/global/images/family/rocky-linux-8",
 }
 
 // OldEL8Images is a map of names to image paths for old EL8 images.
 var OldEL8Images = map[string]string{
-	"old/centos-8": "projects/centos-cloud/global/images/centos-7-v20191014",
-	"old/rhel-8":   "projects/rhel-cloud/global/images/rhel-7-v20191014",
+	"old/rhel-8": "projects/rhel-cloud/global/images/rhel-7-v20210512",
 }
 
 // HeadELImages is a map of names to image paths for public EL image families.
@@ -292,8 +310,9 @@ var HeadWindowsImages = map[string]string{
 	"windows-cloud/windows-2016-core":    "projects/windows-cloud/global/images/family/windows-2016-core",
 	"windows-cloud/windows-2019":         "projects/windows-cloud/global/images/family/windows-2019",
 	"windows-cloud/windows-2019-core":    "projects/windows-cloud/global/images/family/windows-2019-core",
-	"windows-cloud/windows-2004-core":    "projects/windows-cloud/global/images/family/windows-2004-core",
 	"windows-cloud/windows-20h2-core":    "projects/windows-cloud/global/images/family/windows-20h2-core",
+	"windows-cloud/windows-2022":         "projects/windows-cloud/global/images/family/windows-2022",
+	"windows-cloud/windows-2022-core":    "projects/windows-cloud/global/images/family/windows-2022-core",
 }
 
 // OldWindowsImages is a map of names to image paths for old Windows images.
