@@ -32,7 +32,7 @@ func TestInstallYumPackages(t *testing.T) {
 
 	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
 	runner = mockCommandRunner
-	expectedCmd := exec.CommandContext(context.Background(), yum, append(yumInstallArgs, pkgs...)...)
+	expectedCmd := utilmocks.EqCmd(exec.Command(yum, append(yumInstallArgs, pkgs...)...))
 
 	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return([]byte("stdout"), []byte("stderr"), nil).Times(1)
 	if err := InstallYumPackages(testCtx, pkgs); err != nil {
@@ -52,7 +52,7 @@ func TestRemoveYum(t *testing.T) {
 
 	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
 	runner = mockCommandRunner
-	expectedCmd := exec.CommandContext(context.Background(), yum, append(yumRemoveArgs, pkgs...)...)
+	expectedCmd := utilmocks.EqCmd(exec.Command(yum, append(yumRemoveArgs, pkgs...)...))
 
 	mockCommandRunner.EXPECT().Run(ctx, expectedCmd).Return([]byte("stdout"), []byte("stderr"), nil).Times(1)
 	if err := RemoveYumPackages(ctx, pkgs); err != nil {
@@ -94,7 +94,7 @@ func TestYumUpdates(t *testing.T) {
 	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
 	runner = mockCommandRunner
 	ptyrunner = mockCommandRunner
-	expectedCheckUpdate := exec.CommandContext(context.Background(), yum, yumCheckUpdateArgs...)
+	expectedCheckUpdate := utilmocks.EqCmd(exec.Command(yum, yumCheckUpdateArgs...))
 
 	// Test Error
 	t.Run("Error", func(t *testing.T) {
@@ -118,7 +118,7 @@ func TestYumUpdates(t *testing.T) {
 
 	// Test no options
 	t.Run("NoOptions", func(t *testing.T) {
-		expectedCmd := exec.CommandContext(context.Background(), yum, yumListUpdatesArgs...)
+		expectedCmd := utilmocks.EqCmd(exec.Command(yum, yumListUpdatesArgs...))
 
 		first := mockCommandRunner.EXPECT().Run(testCtx, expectedCheckUpdate).Return(data, []byte("stderr"), errExit100).Times(1)
 		mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).After(first).Return(data, []byte("stderr"), nil).Times(1)
@@ -137,7 +137,7 @@ func TestYumUpdates(t *testing.T) {
 
 	// Test MinimalWithSecurity
 	t.Run("MinimalWithSecurity", func(t *testing.T) {
-		expectedCmd := exec.CommandContext(context.Background(), yum, append(yumListUpdateMinimalArgs, "--security")...)
+		expectedCmd := utilmocks.EqCmd(exec.Command(yum, append(yumListUpdateMinimalArgs, "--security")...))
 
 		first := mockCommandRunner.EXPECT().Run(testCtx, expectedCheckUpdate).Return(data, []byte("stderr"), errExit100).Times(1)
 		mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).After(first).Return(data, []byte("stderr"), nil).Times(1)
@@ -218,4 +218,70 @@ func TestParseYumUpdates(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetYumTX(t *testing.T) {
+	dataWithTX := []byte(`
+	=================================================================================================================================================================================
+	Package                                      Arch                           Version                                              Repository                                Size
+	=================================================================================================================================================================================
+	Installing:
+	  kernel                                    x86_64                         2.6.32-754.24.3.el6                                  updates                                   32 M
+	   replacing kernel.x86_64 1.0.0-4
+	Upgrading:
+	  foo                                       noarch                         2.0.0-1                                              BaseOS                                   361 k
+	  bar                                       x86_64                         2.0.0-1                                              repo                                      10 M
+	Obsoleting:
+	  baz                                       noarch                         2.0.0-1                                              repo                                      10 M
+
+	Transaction Summary
+	=================================================================================================================================================================================
+	Upgrade  11 Packages
+
+	Total download size: 106 M
+	Exiting on user command
+	Your transaction was saved, rerun it with:
+	 yum load-transaction /tmp/yum_save_tx.abcdef.yumtx
+	`)
+	dataNoTX := []byte(`
+	=================================================================================================================================================================================
+	Package                                      Arch                           Version                                              Repository                                Size
+	=================================================================================================================================================================================
+	Installing:
+	kernel                                    x86_64                         2.6.32-754.24.3.el6                                  updates                                   32 M
+	replacing kernel.x86_64 1.0.0-4
+	Upgrading:
+	foo                                       noarch                         2.0.0-1                                              BaseOS                                   361 k
+	bar                                       x86_64                         2.0.0-1                                              repo                                      10 M
+	Obsoleting:
+	baz                                       noarch                         2.0.0-1                                              repo                                      10 M
+
+	Transaction Summary
+	=================================================================================================================================================================================
+	Upgrade  11 Packages
+	`)
+	dataUnexpected := []byte(`
+	Exiting on user command
+	Your transaction was saved, rerun it with:
+	 yum load-transaction /tmp/otherfilename
+	`)
+
+	tests := []struct {
+		name string
+		data []byte
+		want string
+	}{
+		{"Transaction created", dataWithTX, "/tmp/yum_save_tx.abcdef.yumtx"},
+		{"Transaction not created", dataNoTX, ""},
+		{"Unexpected Filename", dataUnexpected, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getYumTXFile(tt.data); got != tt.want {
+				t.Errorf("%s: getYumTXFile() = %v, want %v", tt.name, got, tt.want)
+			}
+		})
+	}
+
 }
