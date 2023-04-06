@@ -32,7 +32,7 @@ func TestZypperInstalls(t *testing.T) {
 
 	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
 	runner = mockCommandRunner
-	expectedCmd := exec.CommandContext(context.Background(), zypper, append(zypperInstallArgs, pkgs...)...)
+	expectedCmd := utilmocks.EqCmd(exec.Command(zypper, append(zypperInstallArgs, pkgs...)...))
 
 	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return([]byte("stdout"), []byte("stderr"), nil).Times(1)
 	if err := InstallZypperPackages(testCtx, pkgs); err != nil {
@@ -51,7 +51,7 @@ func TestRemoveZypper(t *testing.T) {
 
 	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
 	runner = mockCommandRunner
-	expectedCmd := exec.CommandContext(context.Background(), zypper, append(zypperRemoveArgs, pkgs...)...)
+	expectedCmd := utilmocks.EqCmd(exec.Command(zypper, append(zypperRemoveArgs, pkgs...)...))
 
 	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return([]byte("stdout"), []byte("stderr"), nil).Times(1)
 	if err := RemoveZypperPackages(testCtx, pkgs); err != nil {
@@ -95,7 +95,7 @@ func TestZypperUpdates(t *testing.T) {
 
 	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
 	runner = mockCommandRunner
-	expectedCmd := exec.CommandContext(context.Background(), zypper, zypperListUpdatesArgs...)
+	expectedCmd := utilmocks.EqCmd(exec.Command(zypper, zypperListUpdatesArgs...))
 
 	data := []byte("v | SLES12-SP3-Updates  | at                     | 3.1.14-7.3      | 3.1.14-8.3.1      | x86_64")
 	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return(data, []byte("stderr"), nil).Times(1)
@@ -124,6 +124,15 @@ SLE-Module-Basesystem15-SP1-Updates | SUSE-SLE-Module-Basesystem-15-SP1-2019-122
 SLE-Module-Basesystem15-SP1-Updates | SUSE-SLE-Module-Basesystem-15-SP1-2019-1258 | recommended | moderate  | ---         | needed     | Recommended update for postfix
 some junk data`
 
+	//Recently new format of response was observed, the difference is additional "Since" field in the table.
+	withSinceField := `Repository                                    | Name                                                  | Category    | Severity  | Interactive    | Status     | Since      | Summary
+----------------------------------------------+-------------------------------------------------------+-------------+-----------+----------------+------------+------------------------------------------------------------
+SLE-Module-Basesystem15-SP1-Updates           | SUSE-SLE-Module-Basesystem-15-SP1-2019-1206           | security    | low       | ---            | applied    | -          | Security update for bzip2
+SLE-Module-Basesystem15-SP1-Updates           | SUSE-SLE-Module-Basesystem-15-SP1-2019-1221           | security    | moderate  | ---            | needed     | -          | Security update for libxslt
+SLE-Module-Basesystem15-SP1-Updates           | SUSE-SLE-Module-Basesystem-15-SP1-2019-1229           | recommended | moderate  | ---            | not needed | -          | Recommended update for sensors
+SLE-Module-Basesystem15-SP1-Updates           | SUSE-SLE-Module-Basesystem-15-SP1-2019-1258           | recommended | moderate  | ---            | needed     | -          | Recommended update for postfix
+some junk data`
+
 	tests := []struct {
 		name      string
 		data      []byte
@@ -136,12 +145,19 @@ some junk data`
 			[]*ZypperPatch{{"SUSE-SLE-Module-Basesystem-15-SP1-2019-1206", "security", "low", "Security update for bzip2"}},
 			[]*ZypperPatch{{"SUSE-SLE-Module-Basesystem-15-SP1-2019-1221", "security", "moderate", "Security update for libxslt"}, {"SUSE-SLE-Module-Basesystem-15-SP1-2019-1258", "recommended", "moderate", "Recommended update for postfix"}},
 		},
+		{
+			"WithSinceField",
+			[]byte(withSinceField),
+			[]*ZypperPatch{{"SUSE-SLE-Module-Basesystem-15-SP1-2019-1206", "security", "low", "Security update for bzip2"}},
+			[]*ZypperPatch{{"SUSE-SLE-Module-Basesystem-15-SP1-2019-1221", "security", "moderate", "Security update for libxslt"}, {"SUSE-SLE-Module-Basesystem-15-SP1-2019-1258", "recommended", "moderate", "Recommended update for postfix"}},
+		},
 		{"NoPackages", []byte("nothing here"), nil, nil},
 		{"nil", nil, nil, nil},
 	}
+	ctx := context.Background()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotIns, gotAvail := parseZypperPatches(tt.data)
+			gotIns, gotAvail := parseZypperPatches(ctx, tt.data)
 			if !reflect.DeepEqual(gotIns, tt.wantIns) {
 				t.Errorf("parseZypperPatches() = %v, want %v", gotIns, tt.wantIns)
 			}
@@ -158,7 +174,7 @@ func TestZypperPatches(t *testing.T) {
 
 	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
 	runner = mockCommandRunner
-	expectedCmd := exec.CommandContext(context.Background(), zypper, append(zypperListPatchesArgs, "--all")...)
+	expectedCmd := utilmocks.EqCmd(exec.Command(zypper, append(zypperListPatchesArgs, "--all")...))
 
 	data := []byte("SLE-Module-Basesystem15-SP1-Updates | SUSE-SLE-Module-Basesystem-15-SP1-2019-1258 | recommended | moderate  | ---         | needed     | Recommended update for postfix")
 	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return(data, []byte("stderr"), nil).Times(1)
@@ -184,7 +200,7 @@ func TestZypperInstalledPatches(t *testing.T) {
 
 	mockCommandRunner := utilmocks.NewMockCommandRunner(mockCtrl)
 	runner = mockCommandRunner
-	expectedCmd := exec.CommandContext(context.Background(), zypper, append(zypperListPatchesArgs, "--all")...)
+	expectedCmd := utilmocks.EqCmd(exec.Command(zypper, append(zypperListPatchesArgs, "--all")...))
 
 	data := []byte("SLE-Module-Basesystem15-SP1-Updates | SUSE-SLE-Module-Basesystem-15-SP1-2019-1258 | recommended | moderate  | ---         | applied     | Recommended update for postfix")
 	mockCommandRunner.EXPECT().Run(testCtx, expectedCmd).Return(data, []byte("stderr"), nil).Times(1)
