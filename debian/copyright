@@ -132,7 +132,7 @@ Copyright: 2019, Google Inc.
 License: Apache-2.0
 
 Files: debian/extra/vendor/google.golang.org/grpc/*
-Copyright: 2014-2020, gRPC authors.
+Copyright: 2014, gRPC authors.
 License: Apache-2.0
 
 Files: debian/extra/vendor/google.golang.org/protobuf/*
