@@ -1,6 +1,7 @@
 google-osconfig-agent (20230330.00-0ubuntu1) lunar; urgency=medium
 
-  * New upstream version 20230330.00 (LP: #2015501)
+  [ Mitchell Dzurick ]
+  * New upstream version 20230330.00. (LP: #2015501)
     - Fix exclude packages field processing (#440)
     - Delete yum transaction files if created. (#445)
     - Don't print raw pointer data. (#446)
@@ -16,6 +17,12 @@ google-osconfig-agent (20230330.00-0ubuntu1) lunar; urgency=medium
     - Fix comparing exec.Cmd in mock on Go1.20
     - support new format of zypper patch (#469)
     - Revert "Call FQDN (#454)" (#470)
+  * d/extra/vendor: update go dependency vendor.
+
+  [ Utkarsh Gupta ]
+  * Supervise this upload.
+  * d/copyright: Drop superfluous-file-pattern.
+  * d/copyright: Update year for grpc license.
 
  -- Mitchell Dzurick <mitchell.dzurick@canonical.com>  Thu, 06 Apr 2023 12:34:17 -0700
 
