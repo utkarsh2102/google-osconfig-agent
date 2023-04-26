@@ -1,3 +1,9 @@
+google-osconfig-agent (20230330.00-0ubuntu1~22.10.0) kinetic; urgency=medium
+
+  * No-change rebuild for Kinetic. (LP: #2015501)
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Thu, 27 Apr 2023 00:28:03 +0200
+
 google-osconfig-agent (20230330.00-0ubuntu1) lunar; urgency=medium
 
   [ Mitchell Dzurick ]
