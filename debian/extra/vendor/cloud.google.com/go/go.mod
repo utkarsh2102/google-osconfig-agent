@@ -1,25 +1,31 @@
 module cloud.google.com/go
 
-go 1.11
+go 1.19
 
 require (
-	cloud.google.com/go/storage v1.10.0
-	github.com/golang/mock v1.4.4
-	github.com/golang/protobuf v1.4.3
-	github.com/google/go-cmp v0.5.4
-	github.com/google/martian/v3 v3.1.0
-	github.com/google/pprof v0.0.0-20210122040257-d980be63207e
-	github.com/googleapis/gax-go/v2 v2.0.5
-	github.com/jstemmer/go-junit-report v0.9.1
-	go.opencensus.io v0.22.5
-	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5
-	golang.org/x/mod v0.4.1 // indirect
-	golang.org/x/net v0.0.0-20210119194325-5f4716e94777
-	golang.org/x/oauth2 v0.0.0-20210113205817-d3ed898aa8a3
-	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c // indirect
-	golang.org/x/text v0.3.5
-	golang.org/x/tools v0.1.0
-	google.golang.org/api v0.40.0
-	google.golang.org/genproto v0.0.0-20210212180131-e7f2df4ecc2d
-	google.golang.org/grpc v1.35.0
+	cloud.google.com/go/compute/metadata v0.2.3
+	cloud.google.com/go/storage v1.28.1
+	github.com/golang/protobuf v1.5.2
+	github.com/google/go-cmp v0.5.9
+	github.com/google/martian/v3 v3.3.2
+	github.com/googleapis/gax-go/v2 v2.7.0
+	go.opencensus.io v0.24.0
+	golang.org/x/oauth2 v0.5.0
+	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2
+	google.golang.org/api v0.110.0
+	google.golang.org/genproto v0.0.0-20230209215440-0dfe4f8abfcc
+	google.golang.org/grpc v1.53.0
+	google.golang.org/protobuf v1.28.1
+)
+
+require (
+	cloud.google.com/go/compute v1.18.0 // indirect
+	cloud.google.com/go/iam v0.8.0 // indirect
+	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
+	github.com/google/uuid v1.3.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
+	golang.org/x/net v0.6.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
 )
