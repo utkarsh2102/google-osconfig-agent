@@ -1,3 +1,10 @@
+google-osconfig-agent (20230330.00-0ubuntu1~20.04.0) focal; urgency=medium
+
+  * No-change rebuild for Focal. (LP: #2015501)
+  * d/{rules,control}: Use Go 1.18 for build
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Thu, 27 Apr 2023 00:54:19 +0200
+
 google-osconfig-agent (20230330.00-0ubuntu1) lunar; urgency=medium
 
   [ Mitchell Dzurick ]
