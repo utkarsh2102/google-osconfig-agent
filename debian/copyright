@@ -19,14 +19,6 @@ Files: debian/extra/vendor/cloud.google.com/*
 Copyright: 2014-2020, Google Inc.
 License: Apache-2.0
 
-Files: debian/extra/vendor/github.com/BurntSushi/*
-Copyright: 2013, TOML authors
-License: Apache-2.0 or Expat
-
-Files: debian/extra/vendor/github.com/BurntSushi/toml/type_fields.go
-Copyright: 2009-2020, The Go Authors.
-License: Apache-2.0
-
 Files: debian/extra/vendor/github.com/GoogleCloudPlatform/*
 Copyright: 2019, Google Inc
 License: Apache-2.0
@@ -54,10 +46,6 @@ Files: debian/extra/vendor/github.com/golang/groupcache/*
 Copyright: 2011-2015, 2017-2019, Google Inc.
 License: Apache-2.0
 
-Files: debian/extra/vendor/github.com/golang/protobuf/internal/*
-Copyright: 2009-2020, The Go Authors.
-License: Apache-2.0
-
 Files: debian/extra/vendor/github.com/golang/protobuf/jsonpb/*
 Copyright: 2009-2020, The Go Authors.
 License: Apache-2.0
@@ -68,10 +56,6 @@ License: Apache-2.0
 
 Files: debian/extra/vendor/github.com/golang/protobuf/protoc-gen-go/*
 Copyright: 2019, Google Inc.
-License: Apache-2.0
-
-Files: debian/extra/vendor/github.com/golang/protobuf/protoc-gen-go/main.go
-Copyright: 2009-2020, The Go Authors.
 License: Apache-2.0
 
 Files: debian/extra/vendor/github.com/golang/protobuf/ptypes/*
@@ -97,17 +81,9 @@ Files: debian/extra/vendor/github.com/googleapis/gax-go/v2/go.mod
 Copyright: 2019, Google Inc.
 License: Apache-2.0
 
-Files: debian/extra/vendor/github.com/jstemmer/*
-Copyright: 2012, Joel Stemmer
-License: Expat
-
 Files: debian/extra/vendor/github.com/julienschmidt/*
 Copyright: 2013, Julien Schmidt
 License: BSD-3-clause
-
-Files: debian/extra/vendor/github.com/kylelemons/*
-Copyright: 2011-2015, 2017-2019, Google Inc.
-License: Apache-2.0
 
 Files: debian/extra/vendor/github.com/sirupsen/*
 Copyright: 2014 Simon Eskildsen
@@ -156,7 +132,7 @@ Copyright: 2019, Google Inc.
 License: Apache-2.0
 
 Files: debian/extra/vendor/google.golang.org/grpc/*
-Copyright: 2014-2020, gRPC authors.
+Copyright: 2014, gRPC authors.
 License: Apache-2.0
 
 Files: debian/extra/vendor/google.golang.org/protobuf/*
