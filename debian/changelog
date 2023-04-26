@@ -1,3 +1,9 @@
+google-osconfig-agent (20230330.00-0ubuntu1~22.04.0) jammy; urgency=medium
+
+  * No-change rebuild for Jammy. (LP: #2015501)
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Thu, 27 Apr 2023 00:37:14 +0200
+
 google-osconfig-agent (20230330.00-0ubuntu1) lunar; urgency=medium
 
   [ Mitchell Dzurick ]
