@@ -17,7 +17,7 @@ export GOCACHE := $(CURDIR)/.gocache
 export GO111MODULE := off
 
 %:
-	dh $@ --builddirectory=_build --buildsystem=golang --with=golang
+	dh $@ --builddirectory=_build --buildsystem=golang --with=golang,systemd
 
 override_dh_auto_configure:
 	cp -r debian/extra/vendor ./
