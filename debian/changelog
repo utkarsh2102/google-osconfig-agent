@@ -1,3 +1,9 @@
+google-osconfig-agent (20220824.00-0ubuntu1~16.04.2) xenial; urgency=medium
+
+  * Build with systemd for services to be respected.
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Tue, 23 May 2023 20:04:01 +0530
+
 google-osconfig-agent (20220824.00-0ubuntu1~16.04.1) xenial; urgency=medium
 
   * No-change rebuild for Xenial.
