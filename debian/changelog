@@ -1,3 +1,50 @@
+google-osconfig-agent (20230504.00-0ubuntu1~18.04.0) bionic; urgency=medium
+
+  * No-change rebuild for Bionic.
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Thu, 25 May 2023 15:41:46 +0530
+
+google-osconfig-agent (20230504.00-0ubuntu1) mantic; urgency=medium
+
+  * New upstream version 20230504.00. (LP: #2020762)
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Thu, 25 May 2023 15:10:30 +0530
+
+google-osconfig-agent (20230330.00-0ubuntu1~18.04.0) bionic; urgency=medium
+
+  * No-change rebuild for Bionic. (LP: #2015501)
+  * d/{rules,control}: Use Go 1.18 for build
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Thu, 27 Apr 2023 01:03:09 +0200
+
+google-osconfig-agent (20230330.00-0ubuntu1) lunar; urgency=medium
+
+  [ Mitchell Dzurick ]
+  * New upstream version 20230330.00. (LP: #2015501)
+    - Fix exclude packages field processing (#440)
+    - Delete yum transaction files if created. (#445)
+    - Don't print raw pointer data. (#446)
+    - Close clients that are not passed anywhere (#450)
+    - Call FQDN (#454)
+    - Update owners file. (#455)
+    - Fix the error in the copy_file_from_bucket.yaml example. (#456)
+    - Update OWNERS (#458)
+    - Remove Debian 9 from e2e tests image list (#460)
+    - Bump golang.org/x/sys from 0.0.0-20210923061019-b8560ed6a9b7 to 0.1.0 (…
+    - Update dependencies (#466)
+    - Remove old images from e2e tests image list
+    - Fix comparing exec.Cmd in mock on Go1.20
+    - support new format of zypper patch (#469)
+    - Revert "Call FQDN (#454)" (#470)
+  * d/extra/vendor: update go dependency vendor.
+
+  [ Utkarsh Gupta ]
+  * Supervise this upload.
+  * d/copyright: Drop superfluous-file-pattern.
+  * d/copyright: Update year for grpc license.
+
+ -- Mitchell Dzurick <mitchell.dzurick@canonical.com>  Thu, 06 Apr 2023 12:34:17 -0700
+
 google-osconfig-agent (20220824.00-0ubuntu1~16.04.2) xenial; urgency=medium
 
   * Build with systemd for services to be respected.

@@ -16,8 +16,9 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/golang/glog"
 	"github.com/pkg/errors"
+
+	log "github.com/golang/glog"
 )
 
 var (
@@ -267,8 +268,13 @@ func CreateTarFile(tarFilename string, files map[string][]byte) error {
 
 // RunCommandAndLogOutput runs the given command and logs the stdout and stderr in parallel.
 func RunCommandAndLogOutput(cmd *exec.Cmd, expectError bool) error {
+	errLogger := log.Error
+	if expectError {
+		errLogger = log.V(1).Info
+	}
+
 	cmd.Stdout = &loggingWriter{logger: log.Info}
-	cmd.Stderr = &loggingWriter{logger: log.Error}
+	cmd.Stderr = &loggingWriter{logger: errLogger}
 
 	err := cmd.Run()
 	if _, ok := err.(*exec.ExitError); ok && expectError {
