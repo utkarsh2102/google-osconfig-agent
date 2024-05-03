@@ -1,3 +1,10 @@
+google-osconfig-agent (20240320.00-0ubuntu1) oracular; urgency=medium
+
+  * New upstream version for upstream tag 20240320.00 (LP: #2064580)
+  * d/patches - Disable TestGetAptGPGKey for LP build environment (mitchdz)
+
+ -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Thu, 02 May 2024 21:56:35 +0100
+
 google-osconfig-agent (20230504.00-0ubuntu1) mantic; urgency=medium
 
   * New upstream version 20230504.00. (LP: #2020762)
