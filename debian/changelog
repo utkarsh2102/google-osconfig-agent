@@ -1,7 +1,14 @@
 google-osconfig-agent (20240320.00-0ubuntu1) oracular; urgency=medium
 
-  * New upstream version for upstream tag 20240320.00 (LP: #2064580)
+  [ Chloé 'kajiya' Smith ]
+  * New upstream version for upstream tag 20240320.00. (LP: #2064580)
+
+  [ Mitchell Dzurick ]
   * d/patches - Disable TestGetAptGPGKey for LP build environment (mitchdz)
+
+  [ Utkarsh Gupta ]
+  * Add missing n-c-r d/ch entries.
+  * Add DEP3 headers & refresh the patch.
 
  -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Thu, 02 May 2024 21:56:35 +0100
 
