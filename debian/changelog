@@ -5,6 +5,18 @@ google-osconfig-agent (20240320.00-0ubuntu1) oracular; urgency=medium
 
  -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Thu, 02 May 2024 21:56:35 +0100
 
+google-osconfig-agent (20230504.00-0ubuntu3) noble; urgency=medium
+
+  * No-change rebuild against Go 1.22.
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Mon, 08 Apr 2024 14:58:21 +1200
+
+google-osconfig-agent (20230504.00-0ubuntu2) mantic; urgency=medium
+
+  * No-change rebuild with Go 1.21.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Thu, 24 Aug 2023 15:59:35 +1200
+
 google-osconfig-agent (20230504.00-0ubuntu1) mantic; urgency=medium
 
   * New upstream version 20230504.00. (LP: #2020762)
