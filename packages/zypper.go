@@ -178,7 +178,7 @@ func parseZypperPatches(ctx context.Context, data []byte) ([]*ZypperPatch, []*Zy
 	for _, ln := range lines {
 		patch, status, err := parseZypperPatch(ln)
 		if err != nil {
-			clog.Debugf(ctx, "skip zypper patch, unable to parse patch, err - %s", err)
+			clog.Debugf(ctx, "skipping a line from zypper patch output: %s", err)
 			continue
 		}
 
@@ -198,7 +198,7 @@ func parseZypperPatches(ctx context.Context, data []byte) ([]*ZypperPatch, []*Zy
 func parseZypperPatch(tableLine []byte) (*ZypperPatch, string, error) {
 	patch := bytes.Split(tableLine, []byte("|"))
 	if len(patch) < 7 || len(patch) > 8 {
-		return nil, "", fmt.Errorf("unexpected format of the zypper patch, expected 7 or 8 segments, got - %d, record - %s", len(patch), string(tableLine))
+		return nil, "", fmt.Errorf("not parsable zypper patch line; expected 7 or 8 segments, got - %d; this usually isn't an error; line: %s", len(patch), string(tableLine))
 	}
 
 	name := string(bytes.TrimSpace(patch[1]))
@@ -367,16 +367,39 @@ func parseZypperPatchInfo(out []byte) (map[string][]string, error) {
 			//zypper.src < 1.13.54-18.40.2
 			//zypper.x86_64 < 1.13.54-18.40.2
 			//zypper-log < 1.13.54-18.40.2
+
+			//srcpackage:ruby2.5 < 2.5.9-150000.4.29.1
+			//ruby2.5.noarch < 2.5.9-150000.4.29.1
+			//ruby2.5.x86_64 < 2.5.9-150000.4.29.1
+			//srcpackage:zypper
+			//zypper-log < 1.14.64-150400.3.32.1
+			//zypper-needs-restarting < 1.14.64-150400.3.32.1
 			parts := strings.Split(string(lines[ctr]), "<")
 			if len(parts) != 2 {
-				return nil, fmt.Errorf("invalid package info")
-			}
-			nameArch := strings.Split(parts[0], ".")
-			if len(nameArch) < 1 || len(nameArch) > 2 {
-				return nil, fmt.Errorf("invalid package info")
+				return nil, fmt.Errorf("invalid package info, can't parse line: " + string(lines[ctr]))
 			}
 
-			pkgName := strings.Trim(nameArch[0], " ")
+			nameArch := parts[0]
+			pkgName := ""
+			if strings.Contains(nameArch, "srcpackage:") {
+				colonIdx := strings.Index(nameArch, ":")
+				pkgName = strings.Trim(nameArch[colonIdx+1:], " ")
+				if len(pkgName) == 0 {
+					return nil, fmt.Errorf("invalid package info, can't parse line: " + string(lines[ctr]))
+				}
+			} else {
+				// Get the last index to handle the case if pkg has float version
+				// (e.g. `ruby2.5.noarch < 2.5.9-150000.4.29.1`)
+				lastDotIdx := strings.LastIndex(nameArch, ".")
+
+				// In case if there's NO dot exist, then the package name doen't contain
+				// the architecture details (`e.g. zypper-log < 1.14.64-150400.3.32.1`)
+				if lastDotIdx == -1 {
+					pkgName = strings.Trim(nameArch, " ")
+				} else {
+					pkgName = strings.Trim(nameArch[:lastDotIdx], " ")
+				}
+			}
 			patches, ok := patchInfo[pkgName]
 			if !ok {
 				patches = make([]string, 0)
