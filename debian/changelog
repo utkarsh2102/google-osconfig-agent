@@ -1,3 +1,16 @@
+google-osconfig-agent (20230504.00-0ubuntu2.2) mantic-security; urgency=medium
+
+  * SECURITY UPDATE: Denial of service
+    - debian/extra/vendor/googgle.golang.org/protobuf was
+      patched with a backport of f01a588e5810b90996452eec4a28f22a0afae023
+      in files encoding/protojson/well_known_types.go,
+      internal/encoding/json/decode.go.
+    - debian/extra/vendor adding patches-applied and README.txt for
+      track/documentation propose about patches applied in vendored sources.
+    - CVE-2024-24786
+
+ -- Leonidas Da Silva Barbosa <leo.barbosa@canonical.com>  Wed, 13 Mar 2024 06:47:52 -0300
+
 google-osconfig-agent (20230504.00-0ubuntu2.1) mantic-security; urgency=medium
 
   * No change rebuild due to golang-1.20, golang-1.21 updates
