@@ -1,3 +1,25 @@
+google-osconfig-agent (20240320.00-0ubuntu1) oracular; urgency=medium
+
+  [ Chloé 'kajiya' Smith ]
+  * New upstream version for upstream tag 20240320.00. (LP: #2064580)
+
+  [ Mitchell Dzurick ]
+  * d/patches - Disable TestGetAptGPGKey for LP build environment (mitchdz)
+
+  [ Utkarsh Gupta ]
+  * Add missing n-c-r d/ch entries.
+  * Add DEP3 headers & refresh the patch.
+  * Update vendored dependencies.
+
+ -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Thu, 02 May 2024 21:56:35 +0100
+
+
+google-osconfig-agent (20230504.00-0ubuntu3) noble; urgency=medium
+
+  * No-change rebuild against Go 1.22.
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Mon, 08 Apr 2024 14:58:21 +1200
+
 google-osconfig-agent (20230504.00-0ubuntu2.2) mantic-security; urgency=medium
 
   * SECURITY UPDATE: Denial of service
