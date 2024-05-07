@@ -28,7 +28,6 @@ while [[ -z $restarted ]]; do
   restart=$(curl -f "http://metadata.google.internal/computeMetadata/v1/instance/attributes/restart-agent" -H "Metadata-Flavor: Google")
   if [[ -n $restart ]]; then
     systemctl restart google-osconfig-agent
-    restart -q -n google-osconfig-agent  # required for EL6
     restarted=true
     sleep 30
   fi
@@ -240,22 +239,18 @@ while(1) {
 	case "zypper":
 		ss = `
 echo 'Adding test repo'
-cat > /etc/zypp/repos.d/google-osconfig-agent.repo <<EOM
-[test-repo]
-name=test repo
-baseurl=https://packages.cloud.google.com/yum/repos/osconfig-agent-test-repository
-enabled=1
-gpgcheck=0
-EOM
-zypper -n remove ed
-zypper -n --no-gpg-checks install ed-0.2-39.el5_2
+zypper ar --no-gpgcheck -f "https://packages.cloud.google.com/yum/repos/osconfig-agent-test-repository" "test-repo"
+zypper refresh
+zypper -n remove cowsay
+zypper -n --no-gpg-checks install cowsay-3.03-20.el7
 %[1]s
 %[2]s
 while true; do
-  isinstalled=$(/usr/bin/rpmquery -a ed)
-  if [[ $isinstalled =~ 0.2-39.el5_2 ]]; then
+  isinstalled=$(/usr/bin/rpmquery -a cowsay)
+  if [[ $isinstalled =~ 3.03-20.el7 ]]; then
     uri=http://metadata.google.internal/computeMetadata/v1/instance/guest-attributes/%[3]s
   else
+    # For package update tests, the new version after the agent update it should be cowsay-3.04-2.el7.noarch
     uri=http://metadata.google.internal/computeMetadata/v1/instance/guest-attributes/%[4]s
   fi
   curl -X PUT --data "1" $uri -H "Metadata-Flavor: Google"
@@ -404,9 +399,12 @@ while ($true) {
 	case "apt":
 		script = fmt.Sprintf("%s\n%s\n%s", utils.InstallOSConfigDeb(), waitForRestartLinux, scriptLinux)
 	case "yum":
-		script = fmt.Sprintf("%s\n%s\n%s", utils.InstallOSConfigEL(image), waitForRestartLinux, scriptLinux)
+		// A dependancy package for ed-1.1-3.3.el6.x86_64.rpm which is used in Enterprise-Linux Recipe steps tests
+		yumInstallInfoPackage := fmt.Sprintf("\n%s\n", "yum install -y info")
+		script = fmt.Sprintf("%s\n%s\n%s\n%s", yumInstallInfoPackage, utils.InstallOSConfigEL(image), waitForRestartLinux, scriptLinux)
 	case "zypper":
-		script = fmt.Sprintf("%s\n%s\n%s", utils.InstallOSConfigSUSE(), waitForRestartLinux, scriptLinux)
+		zypperRemoveEdPackageIfExist := fmt.Sprintf("\n%s\n", "zypper remove -y ed")
+		script = fmt.Sprintf("%s\n%s\n%s\n%s", zypperRemoveEdPackageIfExist, utils.InstallOSConfigSUSE(), waitForRestartLinux, scriptLinux)
 	case "googet":
 		script = fmt.Sprintf("%s\n%s\n%s", utils.InstallOSConfigGooGet(), waitForRestartWin, scriptWin)
 		key = "windows-startup-script-ps1"
