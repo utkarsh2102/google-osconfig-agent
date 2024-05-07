@@ -1,7 +1,7 @@
 google-osconfig-agent (20240320.00-0ubuntu1~20.04.0) focal; urgency=medium
 
-  * Rebuild for Focal Fossa (LP: #2064580)
-    * d/rules && d/control - force use of golang 1.21 to avail of "slices"
+  * Rebuild for Focal. (LP: #2064580)
+    - d/{rules,control}: use Go 1.21 for using the "slices" module.
 
  -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Mon, 06 May 2024 15:32:20 +0100
 
