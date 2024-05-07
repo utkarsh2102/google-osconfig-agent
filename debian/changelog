@@ -1,3 +1,9 @@
+google-osconfig-agent (20240320.00-0ubuntu1~16.04.0) xenial; urgency=medium
+
+  * Rebuild for Xenial. (LP: #2064580)
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Tue, 07 May 2024 18:57:19 +0530
+
 google-osconfig-agent (20240320.00-0ubuntu1~18.04.0) bionic; urgency=medium
 
   * Rebuild for Bionic. (LP: #2064580)
