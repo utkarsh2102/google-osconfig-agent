@@ -1,3 +1,10 @@
+google-osconfig-agent (20240320.00-0ubuntu2) oracular; urgency=medium
+
+  * New upstream version for upstream tag 20240524.03. (LP: #2073161)
+    * d/patches - Edit TestAptRepositories to avail of GPG signing
+
+ -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Mon, 15 Jul 2024 21:28:39 +0100
+
 google-osconfig-agent (20240320.00-0ubuntu1) oracular; urgency=medium
 
   [ Chloé 'kajiya' Smith ]
