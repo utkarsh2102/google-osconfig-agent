@@ -1,6 +1,6 @@
 google-osconfig-agent (20240524.03-0ubuntu1~24.04.0) noble; urgency=medium
 
-  * No-change rebuild for Noble Numbat (LP: #2064580) 
+  * No-change rebuild for Noble.
 
  -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Thu, 25 Jul 2024 21:13:25 +0100
 
