@@ -1,6 +1,6 @@
 module github.com/GoogleCloudPlatform/osconfig
 
-go 1.21
+go 1.21.9
 
 require (
 	cloud.google.com/go/compute/metadata v0.2.3
@@ -11,16 +11,16 @@ require (
 	github.com/StackExchange/wmi v1.2.1
 	github.com/go-ole/go-ole v1.2.6
 	github.com/golang/mock v1.6.0
-	github.com/google/go-cmp v0.5.9
+	github.com/google/go-cmp v0.6.0
 	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
 	github.com/ulikunitz/xz v0.5.11
-	golang.org/x/crypto v0.17.0
+	golang.org/x/crypto v0.22.0
 	golang.org/x/oauth2 v0.7.0
-	golang.org/x/sys v0.15.0
+	golang.org/x/sys v0.19.0
 	google.golang.org/api v0.114.0
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
 	google.golang.org/grpc v1.56.3
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.33.0
 )
 
 require (
@@ -31,17 +31,16 @@ require (
 	cloud.google.com/go/longrunning v0.4.1 // indirect
 	github.com/golang/glog v1.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
 	github.com/googleapis/gax-go/v2 v2.7.1 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/sirupsen/logrus v1.6.0 // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
 	go.chromium.org/luci v0.0.0-20201204084249-3e81ee3e83fe // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
