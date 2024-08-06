@@ -68,14 +68,12 @@ const (
 	debugEnabledDefault            = false
 
 	oldConfigDirLinux = "/etc/osconfig"
-	cacheDirWindows   = `C:\Program Files\Google\OSConfig`
 	cacheDirLinux     = "/var/lib/google_osconfig_agent"
+	windowsCacheDir   = `Google\OSConfig`
 
-	taskStateFileWindows  = cacheDirWindows + `\osconfig_task.state`
 	taskStateFileLinux    = cacheDirLinux + "/osconfig_task.state"
 	oldTaskStateFileLinux = oldConfigDirLinux + "/osconfig_task.state"
 
-	restartFileWindows  = cacheDirWindows + `\osconfig_agent_restart_required`
 	restartFileLinux    = cacheDirLinux + "/osconfig_agent_restart_required"
 	oldRestartFileLinux = oldConfigDirLinux + "/osconfig_agent_restart_required"
 
@@ -130,6 +128,7 @@ type config struct {
 	taskNotificationEnabled bool
 	guestPoliciesEnabled    bool
 	osInventoryEnabled      bool
+	guestAttributesEnabled  bool
 }
 
 func (c *config) parseFeatures(features string, enabled bool) {
@@ -216,6 +215,7 @@ type attributesJSON struct {
 	OSConfigEndpoint      string       `json:"osconfig-endpoint"`
 	OSConfigEnabled       string       `json:"enable-osconfig"`
 	DisabledFeatures      string       `json:"osconfig-disabled-features"`
+	EnableGuestAttributes string       `json:"enable-guest-attributes"`
 }
 
 func createConfigFromMetadata(md metadataJSON) *config {
@@ -334,6 +334,13 @@ func createConfigFromMetadata(md metadataJSON) *config {
 		c.debugEnabled = false
 	}
 
+	if md.Project.Attributes.EnableGuestAttributes != "" {
+		c.guestAttributesEnabled = parseBool(md.Project.Attributes.EnableGuestAttributes)
+	}
+	if md.Instance.Attributes.EnableGuestAttributes != "" {
+		c.guestAttributesEnabled = parseBool(md.Instance.Attributes.EnableGuestAttributes)
+	}
+
 	// Flags take precedence over metadata.
 	if *debug {
 		c.debugEnabled = true
@@ -410,6 +417,15 @@ func getMetadata(suffix string) ([]byte, string, error) {
 	}
 
 	return all, resp.Header.Get("Etag"), nil
+}
+
+// GetCacheDirWindows returns the folder for the temp files location on Windows.
+func GetCacheDirWindows() string {
+	cacheDir, dirErr := os.UserCacheDir()
+	if dirErr != nil {
+		cacheDir = os.TempDir()
+	}
+	return filepath.Join(cacheDir, windowsCacheDir)
 }
 
 // WatchConfig looks for changes in metadata keys. Upon receiving successful response,
@@ -627,6 +643,11 @@ func ID() string {
 	return getAgentConfig().instanceID
 }
 
+// GuestAttributesEnabled is a boolean flag that signal that guest attributes feature is enabled.
+func GuestAttributesEnabled() bool {
+	return getAgentConfig().guestAttributesEnabled
+}
+
 type idToken struct {
 	exp *time.Time
 	raw string
@@ -686,7 +707,7 @@ func Capabilities() []string {
 // TaskStateFile is the location of the task state file.
 func TaskStateFile() string {
 	if runtime.GOOS == "windows" {
-		return taskStateFileWindows
+		return filepath.Join(GetCacheDirWindows(), "osconfig_task.state")
 	}
 
 	return taskStateFileLinux
@@ -700,7 +721,8 @@ func OldTaskStateFile() string {
 // RestartFile is the location of the restart required file.
 func RestartFile() string {
 	if runtime.GOOS == "windows" {
-		return restartFileWindows
+		return filepath.Join(
+			GetCacheDirWindows(), "osconfig_agent_restart_required")
 	}
 
 	return restartFileLinux
@@ -714,7 +736,7 @@ func OldRestartFile() string {
 // CacheDir is the location of the cache directory.
 func CacheDir() string {
 	if runtime.GOOS == "windows" {
-		return cacheDirWindows
+		return GetCacheDirWindows()
 	}
 
 	return cacheDirLinux
