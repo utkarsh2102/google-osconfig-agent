@@ -1,8 +1,9 @@
-google-osconfig-agent (20240524.03-0ubuntu1~24.04.0) noble; urgency=medium
+google-osconfig-agent (20240524.03-0ubuntu2) oracular; urgency=medium
 
-  * No-change rebuild for Noble.
+  * Update vendored dependencies.
+  * Set DH_GOLANG_INSTALL_EXTRA to editions_defaults.binpb
 
- -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Thu, 25 Jul 2024 21:13:25 +0100
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Sat, 03 Aug 2024 15:54:47 +0900
 
 google-osconfig-agent (20240524.03-0ubuntu1) oracular; urgency=medium
 
