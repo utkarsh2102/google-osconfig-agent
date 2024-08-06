@@ -1,3 +1,9 @@
+google-osconfig-agent (20240524.03-0ubuntu2~24.04.0) noble; urgency=medium
+
+  * No-change rebuild for Noble Numbat
+
+ -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Tue, 06 Aug 2024 20:53:07 +0100
+
 google-osconfig-agent (20240524.03-0ubuntu2) oracular; urgency=medium
 
   * Update vendored dependencies.
