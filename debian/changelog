@@ -1,8 +1,9 @@
 google-osconfig-agent (20240524.03-0ubuntu2~20.04.0) focal; urgency=medium
 
-  * Rebuild for Focal Fossa (LP: #2073161)
-    * Add `export GOTOOLCHAIN='local'` to d/rules
-    * Revert addition of d/p/0002-Edit-TestAptRepositories-for-signed-repos.patch 
+  * Rebuild for Focal.
+    - Add `export GOTOOLCHAIN='local'` to d/rules.
+    - Revert addition of the
+      d/p/0002-Edit-TestAptRepositories-for-signed-repos.patch.
 
  -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Tue, 06 Aug 2024 23:18:14 +0100
 
