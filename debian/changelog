@@ -1,8 +1,9 @@
 google-osconfig-agent (20240524.03-0ubuntu2~22.04.0) jammy; urgency=medium
 
-  * Rebuild for Jammy Jellyfish (LP: #2073161)
-    * Bump golang version to 1.22
-    * Revert addition of d/p/0002-Edit-TestAptRepositories-for-signed-repos.patch
+  * Rebuild for Jammy.
+    - Bump golang version to 1.22.
+    - Revert the addition of
+      d/p/0002-Edit-TestAptRepositories-for-signed-repos.patch.
 
  -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Tue, 06 Aug 2024 22:52:48 +0100
 
