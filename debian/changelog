@@ -1,3 +1,29 @@
+google-osconfig-agent (20240524.03-0ubuntu2~20.04.0) focal; urgency=medium
+
+  * Rebuild for Focal.
+    - Add `export GOTOOLCHAIN='local'` to d/rules.
+    - Revert addition of the
+      d/p/0002-Edit-TestAptRepositories-for-signed-repos.patch.
+
+ -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Tue, 06 Aug 2024 23:18:14 +0100
+
+google-osconfig-agent (20240524.03-0ubuntu2) oracular; urgency=medium
+
+  * Update vendored dependencies.
+  * Set DH_GOLANG_INSTALL_EXTRA to editions_defaults.binpb
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Sat, 03 Aug 2024 15:54:47 +0900
+
+google-osconfig-agent (20240524.03-0ubuntu1) oracular; urgency=medium
+
+  * New upstream version for upstream tag 20240524.03. (LP: #2073161)
+  * d/p/0002-Edit-TestAptRepositories-for-signed-repos.patch: Add patch to
+    fix the failing and the blocking `TestAptRepositories` as it doesn't
+    account for the repo files being signed. This patch adds the expected
+    snippet "[signed-by=<managed-GPG-file>]" to the output.
+
+ -- Chloé 'kajiya' Smith <chloe.smith@canonical.com>  Mon, 15 Jul 2024 21:28:39 +0100
+
 google-osconfig-agent (20240320.00-0ubuntu1~18.04.0) bionic; urgency=medium
 
   * Rebuild for Bionic. (LP: #2064580)
