@@ -1,3 +1,10 @@
+google-osconfig-agent (20240524.03-0ubuntu2~16.04.0) xenial; urgency=medium
+
+  * Rebuild for Xenial.
+  * Copy the vendor directory to the build directory.
+
+ -- Utkarsh Gupta <utkarsh@ubuntu.com>  Thu, 05 Sep 2024 13:26:41 +0530
+
 google-osconfig-agent (20240524.03-0ubuntu2~18.04.0) bionic; urgency=medium
 
   * No-change rebuild for Bionic.
