@@ -3,7 +3,7 @@ module github.com/GoogleCloudPlatform/osconfig
 go 1.21.9
 
 require (
-	cloud.google.com/go/compute/metadata v0.2.3
+	cloud.google.com/go/compute/metadata v0.5.1
 	cloud.google.com/go/osconfig v1.11.0
 	cloud.google.com/go/storage v1.29.0
 	cos.googlesource.com/cos/tools.git v0.0.0-20210329212435-a349a79f950d
@@ -16,7 +16,7 @@ require (
 	github.com/ulikunitz/xz v0.5.11
 	golang.org/x/crypto v0.22.0
 	golang.org/x/oauth2 v0.7.0
-	golang.org/x/sys v0.19.0
+	golang.org/x/sys v0.25.0
 	google.golang.org/api v0.114.0
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
 	google.golang.org/grpc v1.56.3
@@ -25,7 +25,6 @@ require (
 
 require (
 	cloud.google.com/go v0.110.0 // indirect
-	cloud.google.com/go/compute v1.19.1 // indirect
 	cloud.google.com/go/iam v0.13.0 // indirect
 	cloud.google.com/go/logging v1.7.0 // indirect
 	cloud.google.com/go/longrunning v0.4.1 // indirect
